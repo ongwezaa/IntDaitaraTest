@@ -1,0 +1,20 @@
+body {
+  background-color: #f5f6f8;
+}
+
+.card {
+  border: none;
+}
+
+#alertContainer .alert {
+  margin-bottom: 1rem;
+}
+
+#previewPane {
+  white-space: pre-wrap;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  min-height: 200px;
+}
