@@ -11,6 +11,7 @@ import { RunStore } from './services/runStore.js';
 import { noCache } from './middleware/noCache.js';
 
 const app = express();
+app.set('etag', false);
 const runStore = new RunStore(appConfig.runStorePath);
 
 const corsOrigins = appConfig.corsOrigins.length ? appConfig.corsOrigins : undefined;
@@ -37,7 +38,13 @@ const staticRoot = appConfig.webRoot ?? path.resolve(currentDir, '../../web');
 app.use('/web', express.static(staticRoot));
 
 function sendHtml(res: Response, fileName: string) {
-  res.sendFile(path.join(staticRoot, fileName), { headers: { 'Cache-Control': 'no-store' } });
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    Pragma: 'no-cache',
+    Expires: '0',
+    'Surrogate-Control': 'no-store',
+  });
+  res.sendFile(path.join(staticRoot, fileName), { cacheControl: false });
 }
 
 app.get('/', (req, res) => sendHtml(res, 'index.html'));

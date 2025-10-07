@@ -13,13 +13,25 @@
     <link rel="stylesheet" href="/web/css/style.css" />
   </head>
   <body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+    <nav class="navbar navbar-expand-lg navbar-light pastel-header shadow-sm">
       <div class="container">
         <a class="navbar-brand" href="/">Logic App Runner</a>
-        <div class="collapse navbar-collapse">
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+          aria-controls="navbarNav"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
           <ul class="navbar-nav ms-auto">
-            <li class="nav-item"><a class="nav-link" href="/status">Runs</a></li>
-            <li class="nav-item"><a class="nav-link active" href="/output">Outputs</a></li>
+            <li class="nav-item"><a class="nav-link" href="/">Upload</a></li>
+            <li class="nav-item"><a class="nav-link" href="/status">Run History</a></li>
+            <li class="nav-item"><a class="nav-link active" href="/output">Output Browser</a></li>
           </ul>
         </div>
       </div>
