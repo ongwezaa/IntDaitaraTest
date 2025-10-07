@@ -65,18 +65,24 @@ if (fs.existsSync(webRoot)) {
   console.log(`Serving frontend assets from ${webRoot}`);
 
   const sendPage = (res: express.Response, page: string) => {
-    res.sendFile(path.join(webRoot, page));
+    const headers = {
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+    } as const;
+    res.set(headers);
+    res.sendFile(path.join(webRoot, page), { lastModified: false, headers });
   };
 
-  app.get(["/", "/index", "/index.html"], (_req, res) => {
+  app.get(["/", "/index", "/index.html", "/index/"], (_req, res) => {
     sendPage(res, "index.html");
   });
 
-  app.get(["/status", "/status.html"], (_req, res) => {
+  app.get(["/status", "/status.html", "/status/"], (_req, res) => {
     sendPage(res, "status.html");
   });
 
-  app.get(["/output", "/output.html"], (_req, res) => {
+  app.get(["/output", "/output.html", "/output/"], (_req, res) => {
     sendPage(res, "output.html");
   });
 
