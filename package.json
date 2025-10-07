@@ -1,0 +1,10 @@
+{
+  "name": "logicapp-blob-ui",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "pnpm --filter @app/api dev",
+    "build": "pnpm -r build",
+    "start": "pnpm --filter @app/api start"
+  }
+}
