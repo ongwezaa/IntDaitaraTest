@@ -63,9 +63,27 @@ app.use("/api/output", createOutputRouter());
 
 if (fs.existsSync(webRoot)) {
   console.log(`Serving frontend assets from ${webRoot}`);
+
+  const sendPage = (res: express.Response, page: string) => {
+    res.sendFile(path.join(webRoot, page));
+  };
+
+  app.get(["/", "/index", "/index.html"], (_req, res) => {
+    sendPage(res, "index.html");
+  });
+
+  app.get(["/status", "/status.html"], (_req, res) => {
+    sendPage(res, "status.html");
+  });
+
+  app.get(["/output", "/output.html"], (_req, res) => {
+    sendPage(res, "output.html");
+  });
+
   app.use(
     express.static(webRoot, {
       extensions: ["html"],
+      redirect: false,
     })
   );
 } else {
