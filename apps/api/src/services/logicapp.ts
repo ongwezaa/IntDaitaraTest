@@ -2,10 +2,12 @@ import "../env.js";
 import axios from "axios";
 import { RunStatus } from "../types.js";
 
-const triggerUrl = process.env.LOGIC_APP_TRIGGER_URL;
-if (!triggerUrl) {
+const triggerUrlEnv = process.env.LOGIC_APP_TRIGGER_URL;
+if (!triggerUrlEnv) {
   throw new Error("LOGIC_APP_TRIGGER_URL must be configured");
 }
+
+const triggerUrl = triggerUrlEnv;
 
 const bearer = process.env.LOGIC_APP_BEARER;
 

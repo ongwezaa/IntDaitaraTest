@@ -1,8 +1,10 @@
 import "../env.js";
 import {
   BlobServiceClient,
+  BlobSASPermissions,
   BlockBlobClient,
   ContainerClient,
+  ContainerSASPermissions,
   SASProtocol,
   StorageSharedKeyCredential,
   generateBlobSASQueryParameters,
@@ -11,13 +13,16 @@ import { Readable } from "stream";
 
 const accountName = process.env.AZURE_STORAGE_ACCOUNT_NAME;
 const accountKey = process.env.AZURE_STORAGE_ACCOUNT_KEY;
-const containerName = process.env.AZURE_STORAGE_CONTAINER;
+const containerNameEnv =
+  process.env.AZURE_STORAGE_CONTAINER ?? process.env.AZURE_STORAGE_CONTAINER_NAME;
 
-if (!accountName || !accountKey || !containerName) {
+if (!accountName || !accountKey || !containerNameEnv) {
   throw new Error(
     "Missing storage configuration. Ensure account name, key, and container are set."
   );
 }
+
+const containerName = containerNameEnv;
 
 const sharedKeyCredential = new StorageSharedKeyCredential(
   accountName,
@@ -93,16 +98,20 @@ export async function listBlobs(prefix: string) {
 
 export function getBlobSasUrl(
   blobPath: string,
-  permissions: string,
+  permissions: string | BlobSASPermissions | ContainerSASPermissions,
   expiryMinutes: number
 ) {
   const expiresOn = new Date(Date.now() + expiryMinutes * 60 * 1000);
+  const parsedPermissions =
+    typeof permissions === "string"
+      ? BlobSASPermissions.parse(permissions)
+      : permissions;
   const sasToken = generateBlobSASQueryParameters(
     {
       containerName,
       blobName: blobPath,
       expiresOn,
-      permissions,
+      permissions: parsedPermissions,
       protocol: SASProtocol.Https,
     },
     sharedKeyCredential

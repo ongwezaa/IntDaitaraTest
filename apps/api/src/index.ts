@@ -1,9 +1,11 @@
 import fs from "node:fs";
+import type { ServerResponse } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import cors from "cors";
 import express from "express";
+import type { ServeStaticOptions } from "serve-static";
 import "./env.js";
 import { createLogicAppRouter } from "./routes/logicapp.js";
 import filesRouter from "./routes/files.js";
@@ -64,14 +66,27 @@ app.use("/api/output", createOutputRouter());
 if (fs.existsSync(webRoot)) {
   console.log(`Serving frontend assets from ${webRoot}`);
 
+  const noStoreHeaders: Record<string, string> = {
+    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+    Pragma: "no-cache",
+    Expires: "0",
+  };
+
   const sendPage = (res: express.Response, page: string) => {
-    const headers = {
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-      Pragma: "no-cache",
-      Expires: "0",
-    } as const;
-    res.set(headers);
-    res.sendFile(path.join(webRoot, page), { lastModified: false, headers });
+    res.set(noStoreHeaders);
+    res.sendFile(path.join(webRoot, page), { lastModified: false, headers: noStoreHeaders });
+  };
+
+  const staticOptions: ServeStaticOptions<ServerResponse> = {
+    extensions: ["html"],
+    redirect: false,
+    setHeaders: (res: ServerResponse, filePath: string) => {
+      if (filePath.endsWith(".html")) {
+        for (const [key, value] of Object.entries(noStoreHeaders)) {
+          res.setHeader(key, value);
+        }
+      }
+    },
   };
 
   app.get(["/", "/index", "/index.html", "/index/"], (_req, res) => {
@@ -86,12 +101,8 @@ if (fs.existsSync(webRoot)) {
     sendPage(res, "output.html");
   });
 
-  app.use(
-    express.static(webRoot, {
-      extensions: ["html"],
-      redirect: false,
-    })
-  );
+  app.use("/web", express.static(webRoot, staticOptions));
+  app.use(express.static(webRoot, staticOptions));
 } else {
   console.warn(`Frontend assets directory not found at ${webRoot}`);
 }

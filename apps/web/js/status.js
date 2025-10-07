@@ -102,7 +102,7 @@ function renderRuns(runs) {
       <td>
         <div class="btn-group btn-group-sm" role="group">
           <button class="btn btn-outline-primary poll-btn" data-id="${run.id}">Poll</button>
-          ${run.status === "Succeeded" ? `<a class="btn btn-outline-success" href="output.html?prefix=${encodeURIComponent(run.outputPrefix)}">Output</a>` : ""}
+          ${run.status === "Succeeded" ? `<a class="btn btn-outline-success" href="/output?prefix=${encodeURIComponent(run.outputPrefix)}">Output</a>` : ""}
         </div>
       </td>
     `;

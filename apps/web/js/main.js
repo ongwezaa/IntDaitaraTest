@@ -156,7 +156,7 @@ triggerBtn?.addEventListener("click", async () => {
     triggerResult.innerHTML = `
       <div class="alert alert-info">
         Run <strong>${run.id}</strong> created with status <span class="badge bg-primary">${run.status}</span>.
-        <a class="ms-2" href="status.html">View Status</a>
+        <a class="ms-2" href="/status">View Status</a>
       </div>
     `;
   } catch (error) {
