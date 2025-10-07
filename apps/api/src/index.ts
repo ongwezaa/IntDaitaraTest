@@ -73,8 +73,14 @@ if (fs.existsSync(webRoot)) {
   };
 
   const sendPage = (res: express.Response, page: string) => {
-    res.set(noStoreHeaders);
-    res.sendFile(path.join(webRoot, page), { lastModified: false, headers: noStoreHeaders });
+    res
+      .status(200)
+      .set(noStoreHeaders)
+      .sendFile(path.join(webRoot, page), {
+        cacheControl: false,
+        lastModified: false,
+        headers: noStoreHeaders,
+      });
   };
 
   const staticOptions: ServeStaticOptions<ServerResponse> = {
