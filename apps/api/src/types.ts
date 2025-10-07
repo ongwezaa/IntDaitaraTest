@@ -22,7 +22,9 @@ export interface RunRecord {
 
 export interface ListBlobItem {
   name: string;
-  size: number;
-  lastModified: string;
+  displayName: string;
+  kind: 'file' | 'folder';
+  size?: number;
+  lastModified?: string;
   contentType?: string;
 }

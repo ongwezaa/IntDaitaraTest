@@ -28,18 +28,74 @@ export async function uploadToBlob(blobPath: string, buffer: Buffer, contentType
   });
 }
 
-export async function listBlobs(prefix: string): Promise<ListBlobItem[]> {
+interface ListOptions {
+  hierarchical?: boolean;
+}
+
+function normalisePrefix(prefix: string): string {
+  if (!prefix) {
+    return '';
+  }
+  return prefix.endsWith('/') ? prefix : `${prefix}/`;
+}
+
+export async function listBlobs(prefix: string, options: ListOptions = {}): Promise<ListBlobItem[]> {
   const container = getContainer();
   const results: ListBlobItem[] = [];
+  const hierarchical = options.hierarchical ?? false;
+  const normalisedPrefix = normalisePrefix(prefix);
+  const folderSet = new Set<string>();
+
   for await (const item of container.listBlobsFlat({ prefix })) {
     if (!item.name) continue;
+    if (!hierarchical) {
+      results.push({
+        name: item.name,
+        displayName: item.name,
+        kind: 'file',
+        size: item.properties.contentLength ?? 0,
+        lastModified: item.properties.lastModified?.toISOString() ?? undefined,
+        contentType: item.properties.contentType ?? undefined,
+      });
+      continue;
+    }
+
+    const relative = normalisedPrefix ? item.name.slice(normalisedPrefix.length) : item.name;
+    if (!relative) {
+      continue;
+    }
+
+    const parts = relative.split('/');
+    if (parts.length > 1) {
+      const folderPath = `${normalisedPrefix}${parts[0]}/`;
+      if (!folderSet.has(folderPath)) {
+        folderSet.add(folderPath);
+        results.push({
+          name: folderPath,
+          displayName: parts[0],
+          kind: 'folder',
+        });
+      }
+      continue;
+    }
+
     results.push({
       name: item.name,
+      displayName: parts[0],
+      kind: 'file',
       size: item.properties.contentLength ?? 0,
-      lastModified: item.properties.lastModified?.toISOString() ?? '',
+      lastModified: item.properties.lastModified?.toISOString() ?? undefined,
       contentType: item.properties.contentType ?? undefined,
     });
   }
+
+  results.sort((a, b) => {
+    if (a.kind === b.kind) {
+      return a.displayName.localeCompare(b.displayName, undefined, { sensitivity: 'base' });
+    }
+    return a.kind === 'folder' ? -1 : 1;
+  });
+
   return results;
 }
 

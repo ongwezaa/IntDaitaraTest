@@ -8,7 +8,7 @@ export const outputRouter = Router();
 outputRouter.get('/list', async (req, res, next) => {
   try {
     const prefix = typeof req.query.prefix === 'string' ? req.query.prefix : appConfig.outputPrefix;
-    const blobs = await listBlobs(prefix);
+    const blobs = await listBlobs(prefix, { hierarchical: true });
     res.json(blobs);
   } catch (error) {
     next(error);

@@ -42,7 +42,7 @@ filesRouter.get('/list', async (req, res, next) => {
   try {
     const prefix = typeof req.query.prefix === 'string' ? req.query.prefix : appConfig.inputPrefix;
     const blobs = await listBlobs(prefix);
-    res.json(blobs);
+    res.json(blobs.filter((blob) => blob.kind === 'file'));
   } catch (error) {
     next(error);
   }
