@@ -1,84 +1,77 @@
-import Database from "better-sqlite3";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { dirname, resolve } from "path";
 import { RunRecord, RunStatus } from "../types.js";
 
-export class RunsRepository {
-  private db: Database.Database;
+type RunsData = {
+  runs: RunRecord[];
+};
 
-  constructor(dbPath: string) {
-    this.db = new Database(dbPath);
-    this.migrate();
+export class RunsRepository {
+  private filePath: string;
+  private data: RunsData;
+
+  constructor(filePath: string) {
+    this.filePath = resolve(filePath);
+    this.ensureStore();
+    this.data = this.read();
   }
 
-  private migrate() {
-    this.db
-      .prepare(`
-        CREATE TABLE IF NOT EXISTS runs (
-          id TEXT PRIMARY KEY,
-          fileName TEXT NOT NULL,
-          fileUrl TEXT NOT NULL,
-          logicRunId TEXT,
-          status TEXT NOT NULL,
-          createdAt TEXT NOT NULL,
-          updatedAt TEXT NOT NULL,
-          outputPrefix TEXT NOT NULL,
-          trackingUrl TEXT,
-          location TEXT
-        )
-      `)
-      .run();
+  private ensureStore() {
+    const dir = dirname(this.filePath);
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
+    }
+    if (!existsSync(this.filePath)) {
+      const initial: RunsData = { runs: [] };
+      writeFileSync(this.filePath, JSON.stringify(initial, null, 2), "utf8");
+    }
+  }
+
+  private read(): RunsData {
+    try {
+      const raw = readFileSync(this.filePath, "utf8");
+      const parsed = JSON.parse(raw) as RunsData;
+      if (!parsed.runs) {
+        return { runs: [] };
+      }
+      return { runs: [...parsed.runs] };
+    } catch {
+      return { runs: [] };
+    }
+  }
+
+  private persist() {
+    writeFileSync(this.filePath, JSON.stringify(this.data, null, 2), "utf8");
   }
 
   public create(run: RunRecord) {
-    const stmt = this.db.prepare(`
-      INSERT INTO runs (
-        id, fileName, fileUrl, logicRunId, status,
-        createdAt, updatedAt, outputPrefix, trackingUrl, location
-      ) VALUES (@id, @fileName, @fileUrl, @logicRunId, @status,
-        @createdAt, @updatedAt, @outputPrefix, @trackingUrl, @location)
-    `);
-    stmt.run(run);
+    this.data.runs.push(run);
+    this.persist();
     return run;
   }
 
   public list(limit = 100): RunRecord[] {
-    const stmt = this.db.prepare(
-      `SELECT * FROM runs ORDER BY datetime(createdAt) DESC LIMIT ?`
-    );
-    return stmt.all(limit) as RunRecord[];
+    return [...this.data.runs]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, limit);
   }
 
   public get(id: string): RunRecord | undefined {
-    const stmt = this.db.prepare(`SELECT * FROM runs WHERE id = ?`);
-    return stmt.get(id) as RunRecord | undefined;
+    return this.data.runs.find((run) => run.id === id);
   }
 
   public update(id: string, patch: Partial<Omit<RunRecord, "id">>) {
-    const run = this.get(id);
-    if (!run) return undefined;
-    const updated: RunRecord = { ...run, ...patch, id };
+    const index = this.data.runs.findIndex((run) => run.id === id);
+    if (index === -1) return undefined;
+    const existing = this.data.runs[index];
+    const updated: RunRecord = { ...existing, ...patch, id };
     updated.updatedAt = new Date().toISOString();
-    const stmt = this.db.prepare(`
-      UPDATE runs SET
-        fileName=@fileName,
-        fileUrl=@fileUrl,
-        logicRunId=@logicRunId,
-        status=@status,
-        createdAt=@createdAt,
-        updatedAt=@updatedAt,
-        outputPrefix=@outputPrefix,
-        trackingUrl=@trackingUrl,
-        location=@location
-      WHERE id=@id
-    `);
-    stmt.run(updated);
+    this.data.runs[index] = updated;
+    this.persist();
     return updated;
   }
 
-  public updateStatus(
-    id: string,
-    status: RunStatus,
-    extra: Partial<RunRecord> = {}
-  ) {
+  public updateStatus(id: string, status: RunStatus, extra: Partial<RunRecord> = {}) {
     return this.update(id, { status, ...extra });
   }
 }

@@ -28,8 +28,8 @@ app.use(
 );
 app.use(express.json({ limit: "5mb" }));
 
-const sqlitePath = process.env.SQLITE_PATH ?? "./data/app.db";
-const runsRepo = new RunsRepository(sqlitePath);
+const runsStorePath = process.env.RUNS_DB_PATH ?? "./data/runs.json";
+const runsRepo = new RunsRepository(runsStorePath);
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });

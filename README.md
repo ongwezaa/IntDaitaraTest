@@ -1,10 +1,11 @@
 # Logic App Blob UI
 
-This project is a small full-stack prototype for orchestrating Azure Logic App runs against files stored in Azure Blob Storage. It provides:
+This project is a small full-stack prototype for orchestrating Azure Logic App runs against files stored in Azure Blob Storage.
+It provides:
 
 - File upload to Blob storage
 - Logic App trigger with parameter selection
-- Run tracking stored in SQLite
+- Run tracking stored in a lightweight JSON file database
 - Output file browsing, preview, and download
 
 ## Project structure
@@ -24,35 +25,40 @@ This project is a small full-stack prototype for orchestrating Azure Logic App r
 
 ## Setup
 
-1. Install dependencies:
+1. Install dependencies (run in the repo root after cloning):
 
    ```bash
    pnpm install
    ```
 
-2. Copy the API environment file:
+2. Copy the API environment file and update it with your Azure details:
 
    ```bash
    cp apps/api/.env.sample apps/api/.env
    ```
 
-   Update the values to match your Azure resources.
-
-3. Initialize the SQLite database directory:
+3. Create the data folder that will hold the JSON store for run history (the app will create the file automatically on first run):
 
    ```bash
    mkdir -p apps/api/data
    ```
 
-4. Start the API server:
+4. Start the backend API (development mode watches for changes):
 
    ```bash
    pnpm dev
    ```
 
-   The API runs on http://localhost:4000.
+   The API listens on http://localhost:4000 by default.
 
-5. Serve the frontend statically (for example with the VS Code Live Server extension) from `apps/web`. The pages expect the API at `http://localhost:4000`.
+5. In a new terminal, serve the static frontend from `apps/web`. You can use any static file server; the following command uses
+pnpm to download a temporary one:
+
+   ```bash
+   pnpm dlx serve apps/web --listen 5173 --single
+   ```
+
+   Then open http://localhost:5173 in your browser. The frontend expects the API at `http://localhost:4000`.
 
 ## Pushing to GitHub
 
@@ -67,6 +73,6 @@ Replace `<your-account>` and `<your-repo>` with the values for your GitHub proje
 
 ## Notes
 
-- The backend automatically migrates the SQLite database on boot.
+- The backend persists run metadata to a JSON file for easy local development; the path is configurable via `RUNS_DB_PATH`.
 - This is a prototype; authentication and production hardening are intentionally left out but the structure allows future integration with Microsoft Entra ID.
 - All storage account secrets remain on the server; the frontend communicates solely via the `/api` routes.

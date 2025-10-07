@@ -11,7 +11,7 @@ import { Readable } from "stream";
 
 const accountName = process.env.AZURE_STORAGE_ACCOUNT_NAME;
 const accountKey = process.env.AZURE_STORAGE_ACCOUNT_KEY;
-const containerName = process.env.AZURE_STORAGE_CONTAINER || "data";
+const containerName = process.env.AZURE_STORAGE_CONTAINER;
 
 if (!accountName || !accountKey || !containerName) {
   throw new Error(
@@ -91,9 +91,6 @@ export async function listBlobs(prefix: string) {
   return results;
 }
 
-import { BlobSASPermissions } from "@azure/storage-blob";
-// ...existing code...
-
 export function getBlobSasUrl(
   blobPath: string,
   permissions: string,
@@ -102,10 +99,10 @@ export function getBlobSasUrl(
   const expiresOn = new Date(Date.now() + expiryMinutes * 60 * 1000);
   const sasToken = generateBlobSASQueryParameters(
     {
-      containerName: containerName!,
+      containerName,
       blobName: blobPath,
       expiresOn,
-      permissions: BlobSASPermissions.parse(permissions),
+      permissions,
       protocol: SASProtocol.Https,
     },
     sharedKeyCredential
@@ -113,7 +110,6 @@ export function getBlobSasUrl(
 
   return `https://${accountName}.blob.core.windows.net/${containerName}/${blobPath}?${sasToken}`;
 }
-// ...existing code...
 
 export async function streamTextBlob(blobPath: string, maxBytes: number) {
   const client = containerClient.getBlobClient(blobPath);
