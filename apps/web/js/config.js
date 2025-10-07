@@ -21,8 +21,11 @@ function resolveFromWindow() {
   }
 
   const origin = window.location && window.location.origin;
-  if (origin && origin !== "null") {
-    return sanitizeBase(origin) + "/api";
+  if (origin && origin !== "null" && !origin.startsWith("file:")) {
+    const port = window.location && window.location.port;
+    if (!port || port === "4100") {
+      return sanitizeBase(origin) + "/api";
+    }
   }
 
   return null;

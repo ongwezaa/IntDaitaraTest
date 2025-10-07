@@ -58,7 +58,7 @@ pnpm to download a temporary one:
    pnpm dlx serve apps/web --listen 5173 --single
    ```
 
-   Then open http://localhost:5173 in your browser. The frontend will automatically point to the same origin when possible and falls back to `http://localhost:4100/api`. If you host the API elsewhere, set `window.API_BASE_URL = "https://your-host/api";` in a small script tag before loading any page JavaScript.
+   Then open http://localhost:5173 in your browser. Unless you explicitly override it, the frontend talks to `http://localhost:4100/api`. If you serve the pages from the same origin as the API (for example, hosting everything from port 4100 or a production domain), the scripts automatically reuse that origin. To point at a different backend, set `window.API_BASE_URL = "https://your-host/api";` in a small script tag before loading any page JavaScript.
 
 ## Pushing to GitHub
 
