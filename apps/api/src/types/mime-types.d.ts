@@ -1,3 +1,1 @@
-declare module "mime-types" {
-  export function lookup(path: string): string | false;
-}
+declare module 'mime-types';

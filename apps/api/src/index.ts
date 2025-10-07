@@ -1,82 +1,54 @@
-import express from "express";
-import cors from "cors";
-import path from "node:path";
-import { env } from "./env.js";
-import filesRouter from "./routes/files.js";
-import logicRouter from "./routes/logicapp.js";
-import runsRouter from "./routes/runs.js";
-import outputRouter from "./routes/output.js";
-import { ensureContainer } from "./services/blob.js";
+import express, { type NextFunction, type Request, type Response } from 'express';
+import cors from 'cors';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { appConfig } from './config.js';
+import { filesRouter } from './routes/files.js';
+import { createLogicAppRouter } from './routes/logicapp.js';
+import { createRunsRouter } from './routes/runs.js';
+import { outputRouter } from './routes/output.js';
+import { RunStore } from './services/runStore.js';
+import { noCache } from './middleware/noCache.js';
 
 const app = express();
+const runStore = new RunStore(appConfig.runStorePath);
 
-app.disable("etag");
-
+const corsOrigins = appConfig.corsOrigins.length ? appConfig.corsOrigins : undefined;
 app.use(
   cors({
-    origin: ["http://localhost:4100", "http://localhost:5173", "http://127.0.0.1:4100"],
-    credentials: false,
-  })
+    origin: corsOrigins ?? '*',
+  }),
 );
-app.use(express.json({ limit: "5mb" }));
+app.use(express.json());
+app.use('/api', noCache);
 
-app.use("/api", (req, res, next) => {
-  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-  res.setHeader("Pragma", "no-cache");
-  res.setHeader("Expires", "0");
-  next();
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true });
 });
 
-app.use("/api/files", filesRouter);
-app.use("/api/logicapp", logicRouter);
-app.use("/api/runs", runsRouter);
-app.use("/api/output", outputRouter);
+app.use('/api/files', filesRouter);
+app.use('/api/logicapp', createLogicAppRouter(runStore));
+app.use('/api/runs', createRunsRouter(runStore));
+app.use('/api/output', outputRouter);
 
-const webRoot = env.webRoot;
-const staticOptions = {
-  extensions: ["html"],
-  setHeaders(res: express.Response) {
-    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-  },
-};
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+const staticRoot = appConfig.webRoot ?? path.resolve(currentDir, '../../web');
 
-app.use("/web", express.static(webRoot, staticOptions));
-app.use("/css", express.static(path.join(webRoot, "css"), staticOptions));
-app.use("/js", express.static(path.join(webRoot, "js"), staticOptions));
-app.use(express.static(webRoot, staticOptions));
+app.use('/web', express.static(staticRoot));
 
-const sendHtml = (file: string) => (
-  _req: express.Request,
-  res: express.Response
-) => {
-  res.status(200);
-  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-  res.sendFile(path.join(webRoot, file));
-};
+function sendHtml(res: Response, fileName: string) {
+  res.sendFile(path.join(staticRoot, fileName), { headers: { 'Cache-Control': 'no-store' } });
+}
 
-app.get(["/", "/index", "/index.html"], sendHtml("index.html"));
-app.get(["/status", "/status.html"], sendHtml("status.html"));
-app.get(["/output", "/output.html"], sendHtml("output.html"));
+app.get('/', (req, res) => sendHtml(res, 'index.html'));
+app.get('/status', (req, res) => sendHtml(res, 'status.html'));
+app.get('/output', (req, res) => sendHtml(res, 'output.html'));
 
-app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error(err);
-  res.status(500).json({ ok: false, message: "Internal server error" });
+app.use((error: unknown, req: Request, res: Response, next: NextFunction) => {
+  console.error(error);
+  res.status(500).json({ ok: false, message: 'Internal server error' });
 });
 
-const start = async () => {
-  try {
-    await ensureContainer();
-  } catch (error) {
-    console.error("Failed to ensure container", error);
-  }
-
-  const server = app.listen(env.port, () => {
-    console.log(`API server listening on port ${env.port}`);
-  });
-
-  process.on("SIGINT", () => {
-    server.close(() => process.exit(0));
-  });
-};
-
-start();
+app.listen(appConfig.port, () => {
+  console.log(`API listening on port ${appConfig.port}`);
+});

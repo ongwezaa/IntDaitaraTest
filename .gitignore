@@ -1,6 +1,8 @@
 node_modules
-apps/api/node_modules
-apps/api/dist
-apps/api/.env
 apps/api/data
-.pnpm-store
+.env
+.DS_Store
+*.log
+pnpm-lock.yaml
+coverage
+apps/api/dist

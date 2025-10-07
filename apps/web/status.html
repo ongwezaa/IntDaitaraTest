@@ -1,7 +1,7 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="utf-8" />
+    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Run Status - Logic App Runner</title>
     <link
@@ -10,28 +10,29 @@
       integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
       crossorigin="anonymous"
     />
-    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/web/css/style.css" />
   </head>
   <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
       <div class="container">
         <a class="navbar-brand" href="/">Logic App Runner</a>
-        <div>
-          <a class="nav-link d-inline text-white" href="/status">Runs</a>
-          <a class="nav-link d-inline text-white" href="/output">Output Browser</a>
+        <div class="collapse navbar-collapse">
+          <ul class="navbar-nav ms-auto">
+            <li class="nav-item"><a class="nav-link active" href="/status">Runs</a></li>
+            <li class="nav-item"><a class="nav-link" href="/output">Outputs</a></li>
+          </ul>
         </div>
       </div>
     </nav>
 
     <main class="container">
       <div class="d-flex justify-content-between align-items-center mt-4 mb-3">
-        <h1 class="h3">Recent runs</h1>
-        <button class="btn btn-outline-secondary" id="refreshBtn">Refresh</button>
+        <h1 class="h3">Run history</h1>
+        <button class="btn btn-outline-primary" id="refreshBtn">Refresh</button>
       </div>
-      <div id="alertContainer"></div>
       <div class="table-responsive">
-        <table class="table table-striped" id="runsTable">
-          <thead>
+        <table class="table table-hover align-middle" id="runsTable">
+          <thead class="table-light">
             <tr>
               <th scope="col">File</th>
               <th scope="col">Run ID</th>
@@ -44,6 +45,7 @@
           <tbody></tbody>
         </table>
       </div>
+      <div id="alertContainer"></div>
     </main>
 
     <div class="modal fade" id="detailsModal" tabindex="-1" aria-hidden="true">
@@ -54,17 +56,13 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <pre id="modalContent" class="mb-0"></pre>
+            <pre id="detailsContent" class="mb-0"></pre>
           </div>
         </div>
       </div>
     </div>
 
-    <script
-      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-      integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
-      crossorigin="anonymous"
-    ></script>
-    <script type="module" src="/js/status.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script type="module" src="/web/js/status.js"></script>
   </body>
 </html>

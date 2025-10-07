@@ -1,54 +1,49 @@
-import { Router } from "express";
-import multer from "multer";
-import { env } from "../env.js";
-import { guessContentType, uploadBuffer, getBlobSasUrl, listBlobs } from "../services/blob.js";
+import { Router } from 'express';
+import multer from 'multer';
+import { appConfig } from '../config.js';
+import { guessContentType, listBlobs, uploadToBlob, buildBlobSas } from '../services/blobService.js';
 
-const router = Router();
+const MAX_FILE_SIZE = 200 * 1024 * 1024;
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_FILE_SIZE } });
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 200 * 1024 * 1024 },
-});
+function sanitizeName(original: string): string {
+  return original.replace(/[^a-zA-Z0-9._-]/g, '_');
+}
 
-const sanitizeName = (name: string) => name.replace(/[^a-zA-Z0-9._-]/g, "-");
+export const filesRouter = Router();
 
-router.post("/upload", upload.single("file"), async (req, res, next) => {
+filesRouter.post('/upload', upload.single('file'), async (req, res, next) => {
   try {
     const file = req.file;
     if (!file) {
-      return res.status(400).json({ ok: false, message: "File is required" });
+      return res.status(400).json({ ok: false, message: 'File is required' });
     }
-
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "");
     const safeName = sanitizeName(file.originalname);
-    const blobName = `${env.inputPrefix}${timestamp}__${safeName}`;
-    const contentType = guessContentType(file.originalname);
-
-    await uploadBuffer(file.buffer, contentType, blobName);
-    const sasUrl = await getBlobSasUrl(blobName, "r", env.blobSasExpiryMinutes);
-
-    res.json({
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const blobPath = `${appConfig.inputPrefix}${timestamp}__${safeName}`;
+    const contentType = file.mimetype || guessContentType(file.originalname);
+    await uploadToBlob(blobPath, file.buffer, contentType);
+    const sasUrl = buildBlobSas(blobPath, 'r', appConfig.sasExpiryMinutes);
+    return res.json({
       ok: true,
-      fileName: blobName,
+      fileName: blobPath,
       sasUrl,
       contentType,
     });
   } catch (error) {
-    if ((error as multer.MulterError).code === "LIMIT_FILE_SIZE") {
-      return res.status(413).json({ ok: false, message: "File too large" });
+    if ((error as Error).message.includes('File too large')) {
+      return res.status(413).json({ ok: false, message: 'File exceeds 200MB limit' });
     }
     next(error);
   }
 });
 
-router.get("/list", async (req, res, next) => {
+filesRouter.get('/list', async (req, res, next) => {
   try {
-    const prefix = typeof req.query.prefix === "string" ? req.query.prefix : env.inputPrefix;
+    const prefix = typeof req.query.prefix === 'string' ? req.query.prefix : appConfig.inputPrefix;
     const blobs = await listBlobs(prefix);
     res.json(blobs);
   } catch (error) {
     next(error);
   }
 });
-
-export default router;

@@ -1,18 +1,13 @@
-import { Router } from "express";
-import { env } from "../env.js";
-import {
-  getBlobProperties,
-  listBlobs,
-  openDownloadStream,
-  streamText,
-} from "../services/blob.js";
-import { shouldPreview } from "../services/preview.js";
+import { Router } from 'express';
+import { appConfig } from '../config.js';
+import { getBlobDownload, getBlobMeta, listBlobs, downloadTextBlob } from '../services/blobService.js';
+import { isPreviewable } from '../services/previewService.js';
 
-const router = Router();
+export const outputRouter = Router();
 
-router.get("/list", async (req, res, next) => {
+outputRouter.get('/list', async (req, res, next) => {
   try {
-    const prefix = typeof req.query.prefix === "string" ? req.query.prefix : env.outputPrefix;
+    const prefix = typeof req.query.prefix === 'string' ? req.query.prefix : appConfig.outputPrefix;
     const blobs = await listBlobs(prefix);
     res.json(blobs);
   } catch (error) {
@@ -20,39 +15,41 @@ router.get("/list", async (req, res, next) => {
   }
 });
 
-router.get("/preview", async (req, res, next) => {
+outputRouter.get('/preview', async (req, res, next) => {
   try {
-    const blob = typeof req.query.blob === "string" ? req.query.blob : undefined;
+    const blob = typeof req.query.blob === 'string' ? req.query.blob : undefined;
     if (!blob) {
-      return res.status(400).json({ ok: false, message: "blob parameter is required" });
+      return res.status(400).json({ ok: false, message: 'blob parameter is required' });
     }
-    const properties = await getBlobProperties(blob);
-    if (!shouldPreview(properties.contentType, properties.contentLength)) {
-      return res.status(413).json({ ok: false, message: "too large to preview" });
+    const meta = await getBlobMeta(blob);
+    if (!isPreviewable(meta.contentType, meta.contentLength)) {
+      return res.status(413).json({ ok: false, message: 'Blob too large or not previewable' });
     }
-    const text = await streamText(blob, properties.contentLength);
-    res.setHeader("Content-Type", properties.contentType);
-    res.send(text);
+    const text = await downloadTextBlob(blob, 5 * 1024 * 1024);
+    if (!text) {
+      return res.status(413).json({ ok: false, message: 'Blob too large to preview' });
+    }
+    res.type(text.contentType).send(text.text);
   } catch (error) {
     next(error);
   }
 });
 
-router.get("/download", async (req, res, next) => {
+outputRouter.get('/download', async (req, res, next) => {
   try {
-    const blob = typeof req.query.blob === "string" ? req.query.blob : undefined;
+    const blob = typeof req.query.blob === 'string' ? req.query.blob : undefined;
     if (!blob) {
-      return res.status(400).json({ ok: false, message: "blob parameter is required" });
+      return res.status(400).json({ ok: false, message: 'blob parameter is required' });
     }
-    const properties = await getBlobProperties(blob);
-    const stream = await openDownloadStream(blob);
-    res.setHeader("Content-Type", properties.contentType);
-    const fileName = blob.split("/").pop() ?? "download";
-    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    const download = await getBlobDownload(blob);
+    const stream = download.readableStreamBody;
+    if (!stream) {
+      return res.status(500).json({ ok: false, message: 'Unable to read blob stream' });
+    }
+    res.setHeader('Content-Type', download.contentType ?? 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${blob.split('/').pop() ?? 'file'}"`);
     stream.pipe(res);
   } catch (error) {
     next(error);
   }
 });
-
-export default router;

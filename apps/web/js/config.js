@@ -1,59 +1,43 @@
-const DEFAULT_API_BASE = "http://localhost:4100/api";
+const DEFAULT_API_BASE = 'http://localhost:4100/api';
 
-const detectApiBase = () => {
-  if (window.API_BASE_URL) {
-    return window.API_BASE_URL.replace(/\/$/, "");
+function resolveApiBase() {
+  const override = window.localStorage.getItem('logicapp_api_base');
+  if (override) {
+    return override;
   }
-  const { origin } = window.location;
-  if (origin.includes(":4100")) {
-    return `${origin.replace(/\/$/, "")}/api`;
+  const { protocol, hostname, port } = window.location;
+  const currentPort = port ? Number(port) : protocol === 'https:' ? 443 : 80;
+  if (currentPort === 4100) {
+    return `${protocol}//${hostname}:${currentPort}/api`;
   }
   return DEFAULT_API_BASE;
-};
+}
 
-export const apiBase = detectApiBase();
+export const API_BASE = resolveApiBase();
 
-export const apiFetch = async (path, options = {}) => {
-  const { headers, ...rest } = options;
-  const response = await fetch(`${apiBase}${path}`, {
+export async function apiFetch(path, options = {}) {
+  const response = await fetch(`${API_BASE}${path}`, {
     headers: {
-      "Content-Type": "application/json",
-      ...(headers || {}),
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
     },
-    ...rest,
+    ...options,
   });
-  const text = await response.text();
-  if (!response.ok) {
-    let payload;
-    try {
-      payload = JSON.parse(text);
-    } catch (error) {
-      payload = { message: text || response.statusText };
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    const data = await response.json();
+    if (!response.ok) {
+      const message = data?.message || 'Request failed';
+      throw new Error(message);
     }
-    const error = new Error(payload.message || `Request failed (${response.status})`);
-    throw error;
+    return data;
   }
-  if (response.status === 204 || text.length === 0) {
-    return null;
-  }
-  return JSON.parse(text);
-};
-
-export const apiFetchRaw = async (path, options = {}) => {
-  const response = await fetch(`${apiBase}${path}`, options);
   if (!response.ok) {
-    throw new Error(`Request failed (${response.status})`);
+    throw new Error(`HTTP ${response.status}`);
   }
-  return response;
-};
+  return response.text();
+}
 
-export const showAlert = (container, message, type = "danger") => {
-  const div = document.createElement("div");
-  div.className = `alert alert-${type} alert-dismissible fade show`;
-  div.role = "alert";
-  div.innerHTML = `
-    ${message}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-  `;
-  container.appendChild(div);
-};
+export async function ensureHealth() {
+  await apiFetch('/health', { method: 'GET' });
+}

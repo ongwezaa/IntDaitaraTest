@@ -1,48 +1,40 @@
-import { Router } from "express";
-import { getRun, listRuns, saveRun } from "../services/db.js";
-import { pollStatus } from "../services/logicapp.js";
+import { Router } from 'express';
+import { pollLogicAppStatus } from '../services/logicAppService.js';
+import { RunStore } from '../services/runStore.js';
 
-const router = Router();
+export function createRunsRouter(store: RunStore) {
+  const router = Router();
 
-router.get("/", async (_req, res, next) => {
-  try {
-    const runs = await listRuns();
+  router.get('/', (req, res) => {
+    const runs = store.list(100);
     res.json(runs);
-  } catch (error) {
-    next(error);
-  }
-});
+  });
 
-router.get("/:id", async (req, res, next) => {
-  try {
-    const run = await getRun(req.params.id);
+  router.get('/:id', (req, res) => {
+    const run = store.get(req.params.id);
     if (!run) {
-      return res.status(404).json({ ok: false, message: "Run not found" });
+      return res.status(404).json({ ok: false, message: 'Run not found' });
     }
     res.json(run);
-  } catch (error) {
-    next(error);
-  }
-});
+  });
 
-router.post("/:id/poll", async (req, res, next) => {
-  try {
-    const run = await getRun(req.params.id);
-    if (!run) {
-      return res.status(404).json({ ok: false, message: "Run not found" });
+  router.post('/:id/poll', async (req, res, next) => {
+    try {
+      const run = store.get(req.params.id);
+      if (!run) {
+        return res.status(404).json({ ok: false, message: 'Run not found' });
+      }
+      const status = await pollLogicAppStatus({
+        runId: run.logicRunId,
+        trackingUrl: run.trackingUrl,
+        location: run.location,
+      });
+      const updated = store.update(run.id, { status });
+      res.json(updated ?? run);
+    } catch (error) {
+      next(error);
     }
-    const poll = await pollStatus({
-      runId: run.logicRunId,
-      trackingUrl: run.trackingUrl,
-      location: run.location,
-    });
-    run.status = poll.status;
-    run.updatedAt = new Date().toISOString();
-    await saveRun(run);
-    res.json(run);
-  } catch (error) {
-    next(error);
-  }
-});
+  });
 
-export default router;
+  return router;
+}
