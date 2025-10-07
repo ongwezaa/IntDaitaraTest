@@ -33,7 +33,7 @@ function resolveApiBase() {
   if (fromWindow) {
     return fromWindow;
   }
-  return "http://localhost:4000/api";
+  return "http://localhost:4100/api";
 }
 
 export const API_BASE = resolveApiBase();

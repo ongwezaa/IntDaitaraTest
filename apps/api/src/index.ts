@@ -7,9 +7,9 @@ import { createRunsRouter } from "./routes/runs.js";
 import { createOutputRouter } from "./routes/output.js";
 import { RunsRepository } from "./services/db.js";
 
-const port = parseInt(process.env.PORT ?? "4000", 10);
+const port = parseInt(process.env.PORT ?? "4100", 10);
 const allowedOrigins = [
-  "http://localhost:4000",
+  "http://localhost:4100",
   "http://localhost:5173",
   process.env.WEB_ORIGIN,
 ].filter(Boolean) as string[];

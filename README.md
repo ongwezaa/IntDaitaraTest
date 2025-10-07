@@ -49,7 +49,7 @@ It provides:
    pnpm dev
    ```
 
-   The API listens on http://localhost:4000 by default.
+   The API listens on http://localhost:4100 by default.
 
 5. In a new terminal, serve the static frontend from `apps/web`. You can use any static file server; the following command uses
 pnpm to download a temporary one:
@@ -58,7 +58,7 @@ pnpm to download a temporary one:
    pnpm dlx serve apps/web --listen 5173 --single
    ```
 
-   Then open http://localhost:5173 in your browser. The frontend will automatically point to the same origin when possible and falls back to `http://localhost:4000/api`. If you host the API elsewhere, set `window.API_BASE_URL = "https://your-host/api";` in a small script tag before loading any page JavaScript.
+   Then open http://localhost:5173 in your browser. The frontend will automatically point to the same origin when possible and falls back to `http://localhost:4100/api`. If you host the API elsewhere, set `window.API_BASE_URL = "https://your-host/api";` in a small script tag before loading any page JavaScript.
 
 ## Pushing to GitHub
 
