@@ -1,0 +1,38 @@
+body {
+  background-color: #f7f9fc;
+}
+
+.navbar-brand {
+  font-weight: 600;
+}
+
+main {
+  padding-top: 2rem;
+  padding-bottom: 4rem;
+}
+
+.card + .card {
+  margin-top: 1.5rem;
+}
+
+.spinner-border {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+pre {
+  background-color: #1e1e1e;
+  color: #f5f5f5;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  max-height: 400px;
+  overflow: auto;
+}
+
+#previewPane table {
+  width: 100%;
+}
+
+.badge-status {
+  font-size: 0.85rem;
+}

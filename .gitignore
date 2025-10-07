@@ -1,0 +1,6 @@
+node_modules
+apps/api/node_modules
+apps/api/dist
+apps/api/.env
+apps/api/data
+.pnpm-store
