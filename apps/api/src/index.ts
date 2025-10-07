@@ -1,3 +1,7 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import cors from "cors";
 import express from "express";
 import "./env.js";
@@ -31,6 +35,13 @@ app.use(express.json({ limit: "5mb" }));
 const runsStorePath = process.env.RUNS_DB_PATH ?? "./data/runs.json";
 const runsRepo = new RunsRepository(runsStorePath);
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const defaultWebRoot = path.resolve(__dirname, "../../web");
+const webRoot = process.env.WEB_ROOT
+  ? path.resolve(process.env.WEB_ROOT)
+  : defaultWebRoot;
+
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
 });
@@ -39,6 +50,17 @@ app.use("/api/files", filesRouter);
 app.use("/api/logicapp", createLogicAppRouter(runsRepo));
 app.use("/api/runs", createRunsRouter(runsRepo));
 app.use("/api/output", createOutputRouter());
+
+if (fs.existsSync(webRoot)) {
+  console.log(`Serving frontend assets from ${webRoot}`);
+  app.use(
+    express.static(webRoot, {
+      extensions: ["html"],
+    })
+  );
+} else {
+  console.warn(`Frontend assets directory not found at ${webRoot}`);
+}
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error("Unhandled error", err);

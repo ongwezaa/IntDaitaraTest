@@ -49,9 +49,9 @@ It provides:
    pnpm dev
    ```
 
-   The API listens on http://localhost:4100 by default.
+   The API listens on http://localhost:4100 by default and also serves the static frontend from the `/apps/web` directory. After the server starts you can open http://localhost:4100 in your browser and use the navigation bar to move between the upload, runs, and output pages.
 
-5. In a new terminal, serve the static frontend from `apps/web`. You can use any static file server; the following command uses
+5. (Optional) If you prefer to serve the frontend from a different origin, run a static file server from `apps/web`. You can use any static file server; the following command uses
 pnpm to download a temporary one:
 
    ```bash
