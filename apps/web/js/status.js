@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:4000/api";
+import { API_BASE, buildApiUrl, checkApiHealth } from "./config.js";
 const runsTableBody = document.querySelector("#runsTable tbody");
 const statusAlert = document.getElementById("statusAlert");
 const runJson = document.getElementById("runJson");
@@ -75,7 +75,7 @@ function formatDate(dateString) {
 
 async function fetchRuns() {
   try {
-    const res = await fetch(`${API_BASE}/runs`);
+    const res = await fetch(buildApiUrl("/runs"));
     const runs = (await parseJsonResponse(res, "Failed to load runs")) ?? [];
     renderRuns(runs);
   } catch (error) {
@@ -127,7 +127,7 @@ runsTableBody.addEventListener("click", async (event) => {
   button.disabled = true;
   button.innerText = "Polling...";
   try {
-    const res = await fetch(`${API_BASE}/logicapp/${id}/poll`, { method: "POST" });
+    const res = await fetch(buildApiUrl(`/logicapp/${id}/poll`), { method: "POST" });
     await parseJsonResponse(res, "Failed to poll");
     await fetchRuns();
   } catch (error) {
@@ -138,5 +138,14 @@ runsTableBody.addEventListener("click", async (event) => {
   }
 });
 
-fetchRuns();
+async function init() {
+  const health = await checkApiHealth();
+  if (!health.ok) {
+    showStatusAlert(health.message ?? `Unable to reach API at ${API_BASE}`);
+    return;
+  }
+  await fetchRuns();
+}
+
+init();
 

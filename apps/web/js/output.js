@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:4000/api";
+import { API_BASE, buildApiUrl, checkApiHealth } from "./config.js";
 const prefixInput = document.getElementById("prefixInput");
 const listBtn = document.getElementById("listBtn");
 const fileList = document.getElementById("fileList");
@@ -64,7 +64,7 @@ async function listOutputs() {
   const prefix = prefixInput.value || "output/";
   fileList.innerHTML = `<div class="list-group-item">Loading...</div>`;
   try {
-    const res = await fetch(`${API_BASE}/output/list?prefix=${encodeURIComponent(prefix)}`);
+    const res = await fetch(buildApiUrl(`/output/list?prefix=${encodeURIComponent(prefix)}`));
     const blobs = (await parseJsonResponse(res, "Failed to load output files")) ?? [];
     renderFileList(blobs);
   } catch (error) {
@@ -90,7 +90,7 @@ function renderFileList(blobs) {
       </div>
       <div class="btn-group btn-group-sm" role="group">
         <button class="btn btn-outline-primary" data-action="preview" data-blob="${encodeURIComponent(blob.name)}">Preview</button>
-        <a class="btn btn-outline-secondary" href="${API_BASE}/output/download?blob=${encodeURIComponent(blob.name)}">Download</a>
+        <a class="btn btn-outline-secondary" href="${buildApiUrl(`/output/download?blob=${encodeURIComponent(blob.name)}`)}">Download</a>
       </div>
     `;
     fileList.appendChild(item);
@@ -107,12 +107,12 @@ fileList.addEventListener("click", async (event) => {
 async function previewBlob(blob) {
   previewPane.textContent = "Loading preview...";
   try {
-    const res = await fetch(`${API_BASE}/output/preview?blob=${encodeURIComponent(blob)}`);
+    const res = await fetch(buildApiUrl(`/output/preview?blob=${encodeURIComponent(blob)}`));
     if (res.status === 413) {
       const err = await res.json().catch(() => ({ message: "Too large to preview" }));
       previewPane.innerHTML = `
         <div class="alert alert-warning">${err.message || "Too large to preview"}</div>
-        <a class="btn btn-sm btn-outline-secondary" href="${API_BASE}/output/download?blob=${encodeURIComponent(blob)}">Download instead</a>
+        <a class="btn btn-sm btn-outline-secondary" href="${buildApiUrl(`/output/download?blob=${encodeURIComponent(blob)}`)}">Download instead</a>
       `;
       return;
     }
@@ -206,5 +206,16 @@ function parseCsvLine(line) {
 const initialPrefix = getInitialPrefix();
 prefixInput.value = initialPrefix;
 listBtn.addEventListener("click", listOutputs);
-listOutputs();
+
+async function init() {
+  const health = await checkApiHealth();
+  if (!health.ok) {
+    showOutputAlert(health.message ?? `Unable to reach API at ${API_BASE}`);
+    fileList.innerHTML = "";
+    return;
+  }
+  await listOutputs();
+}
+
+init();
 

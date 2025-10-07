@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:4000/api";
+import { API_BASE, buildApiUrl, checkApiHealth } from "./config.js";
 
 const fileInput = document.getElementById("fileInput");
 const uploadBtn = document.getElementById("uploadBtn");
@@ -64,7 +64,7 @@ async function parseJsonResponse(res, defaultMessage) {
 async function fetchInputFiles() {
   try {
     fileSelect.innerHTML = `<option>Loading...</option>`;
-    const res = await fetch(`${API_BASE}/files/list?prefix=input/`);
+    const res = await fetch(buildApiUrl("/files/list?prefix=input/"));
     const files = (await parseJsonResponse(res, "Failed to load files")) ?? [];
     if (!Array.isArray(files) || files.length === 0) {
       fileSelect.innerHTML = `<option value="">No files available</option>`;
@@ -95,7 +95,7 @@ uploadBtn?.addEventListener("click", async () => {
   uploadBtn.innerText = "Uploading...";
 
   try {
-    const res = await fetch(`${API_BASE}/files/upload`, {
+    const res = await fetch(buildApiUrl("/files/upload"), {
       method: "POST",
       body: formData,
     });
@@ -143,7 +143,7 @@ triggerBtn?.addEventListener("click", async () => {
   triggerResult.innerHTML = "";
 
   try {
-    const res = await fetch(`${API_BASE}/logicapp/trigger`, {
+    const res = await fetch(buildApiUrl("/logicapp/trigger"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fileName, parameters: params }),
@@ -167,5 +167,14 @@ triggerBtn?.addEventListener("click", async () => {
   }
 });
 
-fetchInputFiles();
+async function init() {
+  const health = await checkApiHealth();
+  if (!health.ok) {
+    showAlert(health.message ?? `Unable to reach API at ${API_BASE}`);
+    return;
+  }
+  await fetchInputFiles();
+}
+
+init();
 
