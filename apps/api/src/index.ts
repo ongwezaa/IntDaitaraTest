@@ -19,6 +19,8 @@ const allowedOrigins = [
 ].filter(Boolean) as string[];
 
 const app = express();
+app.set("etag", false);
+
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -31,6 +33,14 @@ app.use(
   })
 );
 app.use(express.json({ limit: "5mb" }));
+
+app.use("/api", (_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  res.setHeader("Surrogate-Control", "no-store");
+  next();
+});
 
 const runsStorePath = process.env.RUNS_DB_PATH ?? "./data/runs.json";
 const runsRepo = new RunsRepository(runsStorePath);
