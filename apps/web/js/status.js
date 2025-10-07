@@ -5,6 +5,45 @@ const runJson = document.getElementById("runJson");
 const runModalEl = document.getElementById("runModal");
 const modal = runModalEl ? new bootstrap.Modal(runModalEl) : null;
 
+async function parseJsonResponse(res, defaultMessage) {
+  const text = await res.text();
+  if (!res.ok) {
+    let message = defaultMessage ?? `Request failed with status ${res.status}`;
+    if (text) {
+      try {
+        const data = JSON.parse(text);
+        if (typeof data.message === "string") {
+          message = data.message;
+        } else if (typeof data.error === "string") {
+          message = data.error;
+        }
+      } catch {
+        const trimmed = text.trim();
+        if (trimmed && !trimmed.startsWith("<")) {
+          message = trimmed;
+        }
+      }
+    }
+    throw new Error(message);
+  }
+
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    const trimmed = text.trim();
+    if (trimmed.startsWith("<")) {
+      throw new Error(
+        "Server returned HTML instead of JSON. Ensure the API base URL is correct and the backend is running."
+      );
+    }
+    throw new Error(defaultMessage ?? "Received malformed JSON from server.");
+  }
+}
+
 function showStatusAlert(message, type = "danger") {
   const wrapper = document.createElement("div");
   wrapper.innerHTML = `
@@ -37,8 +76,7 @@ function formatDate(dateString) {
 async function fetchRuns() {
   try {
     const res = await fetch(`${API_BASE}/runs`);
-    if (!res.ok) throw new Error("Failed to load runs");
-    const runs = await res.json();
+    const runs = (await parseJsonResponse(res, "Failed to load runs")) ?? [];
     renderRuns(runs);
   } catch (error) {
     showStatusAlert(error.message);
@@ -90,10 +128,7 @@ runsTableBody.addEventListener("click", async (event) => {
   button.innerText = "Polling...";
   try {
     const res = await fetch(`${API_BASE}/logicapp/${id}/poll`, { method: "POST" });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ message: "Failed to poll" }));
-      throw new Error(err.message || "Failed to poll");
-    }
+    await parseJsonResponse(res, "Failed to poll");
     await fetchRuns();
   } catch (error) {
     showStatusAlert(error.message || "Failed to poll");

@@ -5,6 +5,45 @@ const fileList = document.getElementById("fileList");
 const previewPane = document.getElementById("previewPane");
 const outputAlert = document.getElementById("outputAlert");
 
+async function parseJsonResponse(res, defaultMessage) {
+  const text = await res.text();
+  if (!res.ok) {
+    let message = defaultMessage ?? `Request failed with status ${res.status}`;
+    if (text) {
+      try {
+        const data = JSON.parse(text);
+        if (typeof data.message === "string") {
+          message = data.message;
+        } else if (typeof data.error === "string") {
+          message = data.error;
+        }
+      } catch {
+        const trimmed = text.trim();
+        if (trimmed && !trimmed.startsWith("<")) {
+          message = trimmed;
+        }
+      }
+    }
+    throw new Error(message);
+  }
+
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    const trimmed = text.trim();
+    if (trimmed.startsWith("<")) {
+      throw new Error(
+        "Server returned HTML instead of JSON. Ensure the API base URL is correct and the backend is running."
+      );
+    }
+    throw new Error(defaultMessage ?? "Received malformed JSON from server.");
+  }
+}
+
 function showOutputAlert(message, type = "danger") {
   const wrapper = document.createElement("div");
   wrapper.innerHTML = `
@@ -26,8 +65,7 @@ async function listOutputs() {
   fileList.innerHTML = `<div class="list-group-item">Loading...</div>`;
   try {
     const res = await fetch(`${API_BASE}/output/list?prefix=${encodeURIComponent(prefix)}`);
-    if (!res.ok) throw new Error("Failed to load output files");
-    const blobs = await res.json();
+    const blobs = (await parseJsonResponse(res, "Failed to load output files")) ?? [];
     renderFileList(blobs);
   } catch (error) {
     showOutputAlert(error.message);

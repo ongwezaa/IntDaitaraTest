@@ -22,12 +22,50 @@ function showAlert(message, type = "danger") {
   alertContainer.appendChild(wrapper);
 }
 
+async function parseJsonResponse(res, defaultMessage) {
+  const text = await res.text();
+  if (!res.ok) {
+    let message = defaultMessage ?? `Request failed with status ${res.status}`;
+    if (text) {
+      try {
+        const data = JSON.parse(text);
+        if (typeof data.message === "string") {
+          message = data.message;
+        } else if (typeof data.error === "string") {
+          message = data.error;
+        }
+      } catch {
+        const trimmed = text.trim();
+        if (trimmed && !trimmed.startsWith("<")) {
+          message = trimmed;
+        }
+      }
+    }
+    throw new Error(message);
+  }
+
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    const trimmed = text.trim();
+    if (trimmed.startsWith("<")) {
+      throw new Error(
+        "Server returned HTML instead of JSON. Ensure the API base URL is correct and the backend is running."
+      );
+    }
+    throw new Error(defaultMessage ?? "Received malformed JSON from server.");
+  }
+}
+
 async function fetchInputFiles() {
   try {
     fileSelect.innerHTML = `<option>Loading...</option>`;
     const res = await fetch(`${API_BASE}/files/list?prefix=input/`);
-    if (!res.ok) throw new Error("Failed to load files");
-    const files = await res.json();
+    const files = (await parseJsonResponse(res, "Failed to load files")) ?? [];
     if (!Array.isArray(files) || files.length === 0) {
       fileSelect.innerHTML = `<option value="">No files available</option>`;
       return;
@@ -61,11 +99,9 @@ uploadBtn?.addEventListener("click", async () => {
       method: "POST",
       body: formData,
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ message: "Upload failed" }));
-      throw new Error(err.message || "Upload failed");
-    }
-    const data = await res.json();
+    const data = (await parseJsonResponse(res, "Upload failed")) ?? {
+      fileName: "",
+    };
     showAlert(`Uploaded ${data.fileName}`, "success");
     fileInput.value = "";
     await fetchInputFiles();
@@ -112,11 +148,10 @@ triggerBtn?.addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fileName, parameters: params }),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ message: "Trigger failed" }));
-      throw new Error(err.message || "Trigger failed");
+    const data = await parseJsonResponse(res, "Trigger failed");
+    if (!data || typeof data !== "object" || !("run" in data)) {
+      throw new Error("Unexpected response from trigger endpoint");
     }
-    const data = await res.json();
     const run = data.run;
     triggerResult.innerHTML = `
       <div class="alert alert-info">
