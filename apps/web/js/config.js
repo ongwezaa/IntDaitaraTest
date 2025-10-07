@@ -1,87 +1,43 @@
-const GLOBAL_BASE_KEYS = [
-  "API_BASE_URL",
-  "__API_BASE__",
-  "VITE_API_BASE_URL",
-];
-
-function sanitizeBase(base) {
-  return base.replace(/\/+$/, "");
-}
-
-function resolveFromWindow() {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  for (const key of GLOBAL_BASE_KEYS) {
-    const value = window[key];
-    if (typeof value === "string" && value.trim()) {
-      return sanitizeBase(value.trim());
-    }
-  }
-
-  const origin = window.location && window.location.origin;
-  if (origin && origin !== "null" && !origin.startsWith("file:")) {
-    const port = window.location && window.location.port;
-    if (!port || port === "4100") {
-      return sanitizeBase(origin) + "/api";
-    }
-  }
-
-  return null;
-}
+const DEFAULT_API_BASE = 'http://localhost:4100/api';
 
 function resolveApiBase() {
-  const fromWindow = resolveFromWindow();
-  if (fromWindow) {
-    return fromWindow;
+  const override = window.localStorage.getItem('logicapp_api_base');
+  if (override) {
+    return override;
   }
-  return "http://localhost:4100/api";
+  const { protocol, hostname, port } = window.location;
+  const currentPort = port ? Number(port) : protocol === 'https:' ? 443 : 80;
+  if (currentPort === 4100) {
+    return `${protocol}//${hostname}:${currentPort}/api`;
+  }
+  return DEFAULT_API_BASE;
 }
 
 export const API_BASE = resolveApiBase();
 
-export function buildApiUrl(path) {
-  if (!path.startsWith("/")) {
-    path = `/${path}`;
+export async function apiFetch(path, options = {}) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    const data = await response.json();
+    if (!response.ok) {
+      const message = data?.message || 'Request failed';
+      throw new Error(message);
+    }
+    return data;
   }
-  return `${API_BASE}${path}`;
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+  return response.text();
 }
 
-export async function checkApiHealth(timeoutMs = 5000) {
-  const url = buildApiUrl("/health");
-  const supportsAbort = typeof AbortController !== "undefined";
-  const controller = supportsAbort ? new AbortController() : null;
-  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
-  try {
-    const res = await fetch(url, controller ? { signal: controller.signal } : undefined);
-    if (timer) {
-      clearTimeout(timer);
-    }
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      let message = `API at ${url} responded with status ${res.status}.`;
-      const trimmed = text.trim();
-      if (trimmed) {
-        if (trimmed.startsWith("<")) {
-          message += " Received HTML; check that the API base URL is correct.";
-        } else {
-          message += ` ${trimmed}`;
-        }
-      }
-      return { ok: false, message };
-    }
-
-    return { ok: true };
-  } catch (error) {
-    let message = `Unable to reach API at ${url}.`;
-    if (error && typeof error === "object") {
-      if (error.name === "AbortError") {
-        message += " Request timed out.";
-      } else if (typeof error.message === "string" && error.message) {
-        message += ` ${error.message}`;
-      }
-    }
-    return { ok: false, message };
-  }
+export async function ensureHealth() {
+  await apiFetch('/health', { method: 'GET' });
 }

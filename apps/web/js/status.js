@@ -1,151 +1,114 @@
-import { API_BASE, buildApiUrl, checkApiHealth } from "./config.js";
-const runsTableBody = document.querySelector("#runsTable tbody");
-const statusAlert = document.getElementById("statusAlert");
-const runJson = document.getElementById("runJson");
-const runModalEl = document.getElementById("runModal");
-const modal = runModalEl ? new bootstrap.Modal(runModalEl) : null;
+import { apiFetch, ensureHealth } from './config.js';
 
-async function parseJsonResponse(res, defaultMessage) {
-  const text = await res.text();
-  if (!res.ok) {
-    let message = defaultMessage ?? `Request failed with status ${res.status}`;
-    if (text) {
-      try {
-        const data = JSON.parse(text);
-        if (typeof data.message === "string") {
-          message = data.message;
-        } else if (typeof data.error === "string") {
-          message = data.error;
-        }
-      } catch {
-        const trimmed = text.trim();
-        if (trimmed && !trimmed.startsWith("<")) {
-          message = trimmed;
-        }
-      }
-    }
-    throw new Error(message);
-  }
+const tableBody = document.querySelector('#runsTable tbody');
+const refreshBtn = document.getElementById('refreshBtn');
+const alertContainer = document.getElementById('alertContainer');
+const detailsModalEl = document.getElementById('detailsModal');
+const detailsContent = document.getElementById('detailsContent');
+let detailsModal;
 
-  if (!text) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    const trimmed = text.trim();
-    if (trimmed.startsWith("<")) {
-      throw new Error(
-        "Server returned HTML instead of JSON. Ensure the API base URL is correct and the backend is running."
-      );
-    }
-    throw new Error(defaultMessage ?? "Received malformed JSON from server.");
-  }
+function showAlert(message, type = 'danger') {
+  const wrapper = document.createElement('div');
+  wrapper.className = `alert alert-${type} alert-dismissible fade show`;
+  wrapper.innerHTML = `
+    ${message}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  `;
+  alertContainer.appendChild(wrapper);
 }
 
-function showStatusAlert(message, type = "danger") {
-  const wrapper = document.createElement("div");
-  wrapper.innerHTML = `
-    <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-      ${message}
-      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-  `;
-  statusAlert.appendChild(wrapper);
+function formatDate(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
 }
 
 function statusBadge(status) {
   const map = {
-    Queued: "secondary",
-    Running: "primary",
-    Succeeded: "success",
-    Failed: "danger",
-    Canceled: "warning",
-    Unknown: "dark",
+    Queued: 'secondary',
+    Running: 'info',
+    Succeeded: 'success',
+    Failed: 'danger',
+    Canceled: 'warning',
+    Unknown: 'secondary',
   };
-  const variant = map[status] || "secondary";
-  return `<span class="badge bg-${variant}">${status}</span>`;
+  const cls = map[status] || 'secondary';
+  return `<span class="badge bg-${cls}">${status}</span>`;
 }
 
-function formatDate(dateString) {
-  if (!dateString) return "";
-  return new Date(dateString).toLocaleString();
-}
-
-async function fetchRuns() {
-  try {
-    const res = await fetch(buildApiUrl("/runs"));
-    const runs = (await parseJsonResponse(res, "Failed to load runs")) ?? [];
-    renderRuns(runs);
-  } catch (error) {
-    showStatusAlert(error.message);
-  }
-}
-
-function renderRuns(runs) {
-  runsTableBody.innerHTML = "";
-  if (!Array.isArray(runs) || runs.length === 0) {
-    runsTableBody.innerHTML = `
-      <tr><td colspan="6" class="text-center py-4 text-muted">No runs yet</td></tr>
-    `;
+function renderRows(runs) {
+  tableBody.innerHTML = '';
+  if (!runs.length) {
+    const row = document.createElement('tr');
+    const cell = document.createElement('td');
+    cell.colSpan = 6;
+    cell.textContent = 'No runs yet.';
+    row.appendChild(cell);
+    tableBody.appendChild(row);
     return;
   }
-  for (const run of runs) {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
+  runs.forEach((run) => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
       <td>${run.fileName}</td>
-      <td><code>${run.id}</code></td>
+      <td>${run.id}</td>
       <td>${statusBadge(run.status)}</td>
       <td>${formatDate(run.createdAt)}</td>
       <td>${formatDate(run.updatedAt)}</td>
       <td>
-        <div class="btn-group btn-group-sm" role="group">
-          <button class="btn btn-outline-primary poll-btn" data-id="${run.id}">Poll</button>
-          ${run.status === "Succeeded" ? `<a class="btn btn-outline-success" href="/output?prefix=${encodeURIComponent(run.outputPrefix)}">Output</a>` : ""}
-        </div>
+        <button class="btn btn-sm btn-outline-primary poll-btn" data-id="${run.id}">Poll</button>
+        ${run.status === 'Succeeded' ? `<a class="btn btn-sm btn-success ms-2" href="/output?prefix=${encodeURIComponent(run.outputPrefix)}">Outputs</a>` : ''}
       </td>
     `;
-    tr.dataset.run = JSON.stringify(run);
-    tr.addEventListener("click", (event) => {
-      if (event.target.closest("button") || event.target.closest("a")) {
+    row.addEventListener('click', (event) => {
+      if ((event.target).classList.contains('poll-btn')) {
         return;
       }
-      if (modal) {
-        runJson.textContent = JSON.stringify(JSON.parse(tr.dataset.run), null, 2);
-        modal.show();
-      }
+      detailsContent.textContent = JSON.stringify(run, null, 2);
+      detailsModal.show();
     });
-    runsTableBody.appendChild(tr);
+    tableBody.appendChild(row);
+  });
+}
+
+async function loadRuns() {
+  try {
+    const runs = await apiFetch('/runs');
+    renderRows(runs);
+  } catch (error) {
+    showAlert(error.message || 'Failed to load runs');
   }
 }
 
-runsTableBody.addEventListener("click", async (event) => {
-  const button = event.target.closest(".poll-btn");
-  if (!button) return;
-  const id = button.dataset.id;
-  button.disabled = true;
-  button.innerText = "Polling...";
+async function pollRun(id) {
   try {
-    const res = await fetch(buildApiUrl(`/logicapp/${id}/poll`), { method: "POST" });
-    await parseJsonResponse(res, "Failed to poll");
-    await fetchRuns();
+    const updated = await apiFetch(`/runs/${id}/poll`, { method: 'POST' });
+    const runs = await apiFetch('/runs');
+    renderRows(runs);
+    showAlert(`Run ${updated.id} status: ${updated.status}`, 'info');
   } catch (error) {
-    showStatusAlert(error.message || "Failed to poll");
-  } finally {
-    button.disabled = false;
-    button.innerText = "Poll";
+    showAlert(error.message || 'Failed to poll run');
+  }
+}
+
+refreshBtn.addEventListener('click', loadRuns);
+
+tableBody.addEventListener('click', (event) => {
+  const button = event.target.closest('.poll-btn');
+  if (button) {
+    event.stopPropagation();
+    const id = button.getAttribute('data-id');
+    pollRun(id);
   }
 });
 
-async function init() {
-  const health = await checkApiHealth();
-  if (!health.ok) {
-    showStatusAlert(health.message ?? `Unable to reach API at ${API_BASE}`);
-    return;
+(async () => {
+  try {
+    await ensureHealth();
+    await loadRuns();
+    detailsModal = new bootstrap.Modal(detailsModalEl);
+  } catch (error) {
+    showAlert('Backend unavailable. Please confirm the API is running.');
   }
-  await fetchRuns();
-}
-
-init();
-
+})();

@@ -1,13 +1,18 @@
 body {
-  background-color: #f5f6f8;
+  background-color: #f7f9fc;
 }
 
-.card {
-  border: none;
+.navbar-brand {
+  font-weight: 600;
 }
 
-#alertContainer .alert {
-  margin-bottom: 1rem;
+main {
+  padding: 2rem 0;
+}
+
+.table td,
+.table th {
+  vertical-align: middle;
 }
 
 #previewPane {
@@ -17,4 +22,8 @@ body {
   border-radius: 0.5rem;
   padding: 1rem;
   min-height: 200px;
+}
+
+.spinner-border.spinner-border-sm {
+  margin-right: 0.25rem;
 }

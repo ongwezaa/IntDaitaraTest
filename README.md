@@ -1,78 +1,42 @@
-# Logic App Blob UI
+# Logic App Runner
 
-This project is a small full-stack prototype for orchestrating Azure Logic App runs against files stored in Azure Blob Storage.
-It provides:
+A lightweight sample that lets you upload source files to Azure Blob Storage, trigger an Azure Logic App with the selected file, track run history, and browse generated outputs. The stack uses a TypeScript Express API, JSON-backed persistence, and static Bootstrap frontend pages served by the API.
 
-- File upload to Blob storage
-- Logic App trigger with parameter selection
-- Run tracking stored in a lightweight JSON file database
-- Output file browsing, preview, and download
-
-## Project structure
+## Project layout
 
 ```
 /apps
-  /api        # Node.js + Express + TypeScript backend
-  /web        # Static HTML/CSS/JS frontend
+  /api              # TypeScript Express backend
+  /web              # Static HTML/JS frontend
 ```
 
 ## Prerequisites
 
-- Node.js 18+
-- pnpm 8+
-- Azure Storage account and container
-- Logic App manual trigger endpoint (or mock)
+* Node.js 18+
+* pnpm 9+
+* Azure Storage account and Logic App trigger URL
 
 ## Setup
 
-1. Install dependencies (run in the repo root after cloning):
-
-   ```bash
-   pnpm install
-   ```
-
-2. Copy the API environment file and update it with your Azure details:
-
-   ```bash
-   cp apps/api/.env.sample apps/api/.env
-   ```
-
-3. Create the data folder that will hold the JSON store for run history (the app will create the file automatically on first run):
-
-   ```bash
-   mkdir -p apps/api/data
-   ```
-
-4. Start the backend API (development mode watches for changes):
-
-   ```bash
-   pnpm dev
-   ```
-
-   The API listens on http://localhost:4100 by default and also serves the static frontend from the `/apps/web` directory. After the server starts you can open http://localhost:4100 in your browser and use the navigation bar to move between the upload, runs, and output pages.
-
-5. (Optional) If you prefer to serve the frontend from a different origin, run a static file server from `apps/web`. You can use any static file server; the following command uses
-pnpm to download a temporary one:
-
-   ```bash
-   pnpm dlx serve apps/web --listen 5173 --single
-   ```
-
-   Then open http://localhost:5173 in your browser. Unless you explicitly override it, the frontend talks to `http://localhost:4100/api`. If you serve the pages from the same origin as the API (for example, hosting everything from port 4100 or a production domain), the scripts automatically reuse that origin. To point at a different backend, set `window.API_BASE_URL = "https://your-host/api";` in a small script tag before loading any page JavaScript.
-
-## Pushing to GitHub
-
-If you would like to publish this repository to your own GitHub account, you can create a new remote and push the existing history:
-
 ```bash
-git remote add origin git@github.com:<your-account>/<your-repo>.git
-git push -u origin work
+pnpm install
+cp apps/api/.env.sample apps/api/.env
+# edit .env with your storage account + Logic App details
+pnpm dev
 ```
 
-Replace `<your-account>` and `<your-repo>` with the values for your GitHub project. If the remote already exists (for example, after cloning from GitHub), you only need the final `git push` command.
+The dev script launches the API on http://localhost:4100. The API serves the static frontend at `/` so you can open http://localhost:4100/ in a browser to use the UI.
 
-## Notes
+## Production build
 
-- The backend persists run metadata to a JSON file for easy local development; the path is configurable via `RUNS_DB_PATH`.
-- This is a prototype; authentication and production hardening are intentionally left out but the structure allows future integration with Microsoft Entra ID.
-- All storage account secrets remain on the server; the frontend communicates solely via the `/api` routes.
+```bash
+pnpm build
+pnpm start
+```
+
+The backend persists run history in `apps/api/data/runs.json`. The directory is created automatically; you can back up or delete it between runs if needed.
+
+## Frontend overrides
+
+If you prefer to host the frontend separately, set `WEB_ROOT` in `.env` to a folder containing the static assets and serve them with your own tooling. Update `VITE_API_BASE_URL` (or similar) in `apps/web/js/config.js` if the API runs on a non-default origin.
+

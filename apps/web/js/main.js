@@ -1,180 +1,150 @@
-import { API_BASE, buildApiUrl, checkApiHealth } from "./config.js";
+import { API_BASE, apiFetch, ensureHealth } from './config.js';
 
-const fileInput = document.getElementById("fileInput");
-const uploadBtn = document.getElementById("uploadBtn");
-const fileSelect = document.getElementById("fileSelect");
-const refreshBtn = document.getElementById("refreshBtn");
-const targetType = document.getElementById("targetType");
-const targetEnv = document.getElementById("targetEnv");
-const extraParams = document.getElementById("extraParams");
-const triggerBtn = document.getElementById("triggerBtn");
-const triggerResult = document.getElementById("triggerResult");
-const alertContainer = document.getElementById("alertContainer");
+const fileSelect = document.getElementById('fileSelect');
+const uploadBtn = document.getElementById('uploadBtn');
+const triggerBtn = document.getElementById('triggerBtn');
+const uploadSpinner = document.getElementById('uploadSpinner');
+const triggerSpinner = document.getElementById('triggerSpinner');
+const alertContainer = document.getElementById('alertContainer');
 
-function showAlert(message, type = "danger") {
-  const wrapper = document.createElement("div");
+function showAlert(message, type = 'danger') {
+  const wrapper = document.createElement('div');
+  wrapper.className = `alert alert-${type} alert-dismissible fade show`;
+  wrapper.role = 'alert';
   wrapper.innerHTML = `
-    <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-      ${message}
-      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
+    ${message}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   `;
   alertContainer.appendChild(wrapper);
 }
 
-async function parseJsonResponse(res, defaultMessage) {
-  const text = await res.text();
-  if (!res.ok) {
-    let message = defaultMessage ?? `Request failed with status ${res.status}`;
-    if (text) {
-      try {
-        const data = JSON.parse(text);
-        if (typeof data.message === "string") {
-          message = data.message;
-        } else if (typeof data.error === "string") {
-          message = data.error;
-        }
-      } catch {
-        const trimmed = text.trim();
-        if (trimmed && !trimmed.startsWith("<")) {
-          message = trimmed;
-        }
-      }
-    }
-    throw new Error(message);
-  }
-
-  if (!text) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    const trimmed = text.trim();
-    if (trimmed.startsWith("<")) {
-      throw new Error(
-        "Server returned HTML instead of JSON. Ensure the API base URL is correct and the backend is running."
-      );
-    }
-    throw new Error(defaultMessage ?? "Received malformed JSON from server.");
+function toggleLoading(button, spinner, isLoading) {
+  if (isLoading) {
+    button.setAttribute('disabled', 'true');
+    spinner.classList.remove('d-none');
+  } else {
+    button.removeAttribute('disabled');
+    spinner.classList.add('d-none');
   }
 }
 
-async function fetchInputFiles() {
+async function loadFiles() {
+  fileSelect.innerHTML = '';
+  const option = document.createElement('option');
+  option.textContent = 'Loading...';
+  fileSelect.appendChild(option);
   try {
-    fileSelect.innerHTML = `<option>Loading...</option>`;
-    const res = await fetch(buildApiUrl("/files/list?prefix=input/"));
-    const files = (await parseJsonResponse(res, "Failed to load files")) ?? [];
-    if (!Array.isArray(files) || files.length === 0) {
-      fileSelect.innerHTML = `<option value="">No files available</option>`;
+    const files = await apiFetch('/files/list');
+    fileSelect.innerHTML = '';
+    if (!files.length) {
+      const empty = document.createElement('option');
+      empty.textContent = 'No files found';
+      fileSelect.appendChild(empty);
       return;
     }
-    fileSelect.innerHTML = "";
-    for (const file of files) {
-      const option = document.createElement("option");
-      option.value = file.name;
-      option.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-      fileSelect.appendChild(option);
-    }
+    files.forEach((file) => {
+      const opt = document.createElement('option');
+      opt.value = file.name;
+      opt.textContent = `${file.name} (${Math.round(file.size / 1024)} KB)`;
+      fileSelect.appendChild(opt);
+    });
   } catch (error) {
-    showAlert(error.message);
+    fileSelect.innerHTML = '';
+    const opt = document.createElement('option');
+    opt.textContent = 'Unable to load files';
+    fileSelect.appendChild(opt);
+    showAlert(error.message || 'Failed to load files');
   }
 }
 
-uploadBtn?.addEventListener("click", async () => {
-  if (!fileInput.files?.length) {
-    showAlert("Select a file to upload", "warning");
+async function handleUpload() {
+  const fileInput = document.getElementById('fileInput');
+  const file = fileInput.files?.[0];
+  if (!file) {
+    showAlert('Please choose a file to upload', 'warning');
     return;
   }
-  const file = fileInput.files[0];
   const formData = new FormData();
-  formData.append("file", file);
-
-  uploadBtn.disabled = true;
-  uploadBtn.innerText = "Uploading...";
-
+  formData.append('file', file);
+  toggleLoading(uploadBtn, uploadSpinner, true);
   try {
-    const res = await fetch(buildApiUrl("/files/upload"), {
-      method: "POST",
+    const response = await fetch(`${API_BASE}/files/upload`, {
+      method: 'POST',
       body: formData,
     });
-    const data = (await parseJsonResponse(res, "Upload failed")) ?? {
-      fileName: "",
-    };
-    showAlert(`Uploaded ${data.fileName}`, "success");
-    fileInput.value = "";
-    await fetchInputFiles();
-  } catch (error) {
-    showAlert(error.message || "Upload failed");
-  } finally {
-    uploadBtn.disabled = false;
-    uploadBtn.innerText = "Upload";
-  }
-});
-
-refreshBtn?.addEventListener("click", fetchInputFiles);
-
-triggerBtn?.addEventListener("click", async () => {
-  const fileName = fileSelect.value;
-  if (!fileName) {
-    showAlert("Choose a file before triggering", "warning");
-    return;
-  }
-
-  let params = {
-    target_type: targetType.value,
-    target_env: targetEnv.value,
-  };
-
-  const extra = extraParams.value.trim();
-  if (extra) {
+    const text = await response.text();
+    let data;
     try {
-      const parsed = JSON.parse(extra);
-      params = { ...params, ...parsed };
-    } catch (error) {
-      showAlert("Extra parameters must be valid JSON", "warning");
-      return;
+      data = JSON.parse(text);
+    } catch (err) {
+      throw new Error('Upload failed: unexpected response');
     }
-  }
-
-  triggerBtn.disabled = true;
-  triggerBtn.innerText = "Triggering...";
-  triggerResult.innerHTML = "";
-
-  try {
-    const res = await fetch(buildApiUrl("/logicapp/trigger"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fileName, parameters: params }),
-    });
-    const data = await parseJsonResponse(res, "Trigger failed");
-    if (!data || typeof data !== "object" || !("run" in data)) {
-      throw new Error("Unexpected response from trigger endpoint");
+    if (!response.ok) {
+      throw new Error(data?.message || 'Upload failed');
     }
-    const run = data.run;
-    triggerResult.innerHTML = `
-      <div class="alert alert-info">
-        Run <strong>${run.id}</strong> created with status <span class="badge bg-primary">${run.status}</span>.
-        <a class="ms-2" href="/status">View Status</a>
-      </div>
-    `;
+    showAlert(`Uploaded ${data.fileName}`, 'success');
+    fileInput.value = '';
+    await loadFiles();
+    fileSelect.value = data.fileName;
   } catch (error) {
-    showAlert(error.message || "Trigger failed");
+    showAlert(error.message || 'Upload failed');
   } finally {
-    triggerBtn.disabled = false;
-    triggerBtn.innerText = "Trigger Logic App";
+    toggleLoading(uploadBtn, uploadSpinner, false);
   }
-});
-
-async function init() {
-  const health = await checkApiHealth();
-  if (!health.ok) {
-    showAlert(health.message ?? `Unable to reach API at ${API_BASE}`);
-    return;
-  }
-  await fetchInputFiles();
 }
 
-init();
+function parseExtraParams(value) {
+  if (!value.trim()) return {};
+  try {
+    const parsed = JSON.parse(value);
+    if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('Parameters must be a JSON object');
+    }
+    return parsed;
+  } catch (error) {
+    throw new Error('Invalid JSON in additional parameters');
+  }
+}
 
+async function handleTrigger() {
+  const fileName = fileSelect.value;
+  if (!fileName || fileName.startsWith('No files')) {
+    showAlert('Please select a valid file', 'warning');
+    return;
+  }
+  const params = {
+    target_type: document.getElementById('targetType').value,
+    target_env: document.getElementById('targetEnv').value,
+  };
+  try {
+    const extra = parseExtraParams(document.getElementById('extraParams').value);
+    Object.assign(params, extra);
+  } catch (error) {
+    showAlert(error.message, 'warning');
+    return;
+  }
+  toggleLoading(triggerBtn, triggerSpinner, true);
+  try {
+    const run = await apiFetch('/logicapp/trigger', {
+      method: 'POST',
+      body: JSON.stringify({ fileName, parameters: params }),
+    });
+    showAlert(`Run created: ${run.id}`, 'success');
+  } catch (error) {
+    showAlert(error.message || 'Failed to trigger Logic App');
+  } finally {
+    toggleLoading(triggerBtn, triggerSpinner, false);
+  }
+}
+
+(async () => {
+  try {
+    await ensureHealth();
+    await loadFiles();
+  } catch (error) {
+    showAlert('Backend unavailable. Please confirm the API is running.');
+  }
+})();
+
+uploadBtn.addEventListener('click', handleUpload);
+triggerBtn.addEventListener('click', handleTrigger);
