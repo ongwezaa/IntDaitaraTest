@@ -51,9 +51,9 @@
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
               <h2 class="h5 mb-0">Files &amp; folders</h2>
             </div>
-            <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+            <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 files-header">
               <div class="breadcrumb-container" id="breadcrumb"></div>
-              <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
+              <div class="d-flex flex-wrap flex-lg-nowrap align-items-center justify-content-end gap-2 files-actions">
                 <div class="search-input input-group input-group-sm search-compact">
                   <span class="input-group-text" aria-hidden="true">
                     <i class="bi bi-search"></i>
@@ -118,7 +118,7 @@
         <div class="card-header bg-transparent border-0 pb-0">
           <h2 class="h5 mb-0">Trigger Logic App</h2>
         </div>
-        <div class="card-body">
+        <div class="card-body trigger-card-body">
           <div class="parameter-row row g-3 align-items-center">
             <label class="col-12 col-lg-4 col-xl-3 col-form-label" for="fileSelect">Source file</label>
             <div class="col-12 col-lg-8 col-xl-9">
@@ -137,7 +137,7 @@
               <select class="form-select" id="sourcePromptSelect"></select>
             </div>
           </div>
-          <div class="parameter-row row g-3 align-items-center mb-4">
+          <div class="parameter-row row g-3 align-items-center">
             <label class="col-12 col-lg-4 col-xl-3 col-form-label" for="selectPromptSelect">Select mapping prompt</label>
             <div class="col-12 col-lg-8 col-xl-9">
               <select class="form-select" id="selectPromptSelect"></select>
@@ -181,7 +181,7 @@
               </select>
             </div>
           </div>
-          <div class="parameter-row row g-3 align-items-center mb-4">
+          <div class="parameter-row row g-3 align-items-center">
             <label class="col-12 col-lg-4 col-xl-3 col-form-label" for="generateDdl">Generate DDL</label>
             <div class="col-12 col-lg-8 col-xl-9">
               <select class="form-select" id="generateDdl">
@@ -190,9 +190,11 @@
               </select>
             </div>
           </div>
-          <div class="mt-4">
-            <label class="form-label" for="parametersPreview">Trigger parameters (JSON)</label>
-            <textarea class="form-control code-textarea" id="parametersPreview" rows="18"></textarea>
+          <div class="parameter-row row g-3 align-items-start">
+            <label class="col-12 col-lg-4 col-xl-3 col-form-label" for="parametersPreview">Trigger parameters (JSON)</label>
+            <div class="col-12 col-lg-8 col-xl-9">
+              <textarea class="form-control code-textarea" id="parametersPreview" rows="12"></textarea>
+            </div>
           </div>
           <div class="d-flex flex-wrap gap-3 mt-4">
             <button class="btn btn-gradient" id="triggerBtn" type="button">

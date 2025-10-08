@@ -5,6 +5,8 @@ const refreshBtn = document.getElementById('refreshBtn');
 const alertContainer = document.getElementById('alertContainer');
 const detailsModalEl = document.getElementById('detailsModal');
 const detailsContent = document.getElementById('detailsContent');
+const parametersModalEl = document.getElementById('parametersModal');
+const parametersContent = document.getElementById('parametersContent');
 const searchInput = document.getElementById('searchInput');
 const pageSizeSelect = document.getElementById('pageSizeSelect');
 const pageSummary = document.getElementById('pageSummary');
@@ -13,6 +15,7 @@ const nextPageBtn = document.getElementById('nextPageBtn');
 const sortableHeaders = document.querySelectorAll('#runsTable th.sortable');
 
 let detailsModal;
+let parametersModal;
 let allRuns = [];
 let filteredRuns = [];
 let currentPage = 1;
@@ -35,45 +38,6 @@ function showAlert(message, type = 'danger') {
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   `;
   alertContainer?.appendChild(wrapper);
-}
-
-function formatParameterSummary(parameters = {}) {
-  if (!parameters || typeof parameters !== 'object') {
-    return '<span class="text-muted">-</span>';
-  }
-  const entries = Object.entries(parameters).filter(([, value]) => {
-    if (value === undefined || value === null) return false;
-    if (typeof value === 'string' && value.trim() === '') return false;
-    return true;
-  });
-  if (!entries.length) {
-    return '<span class="text-muted">-</span>';
-  }
-  const items = entries.map(([key, value]) => {
-    let displayValue;
-    if (typeof value === 'boolean') {
-      displayValue = value ? 'true' : 'false';
-    } else if (typeof value === 'number') {
-      displayValue = Number.isFinite(value) ? value.toString() : '';
-    } else if (typeof value === 'string') {
-      const trimmed = value.trim();
-      displayValue = trimmed || value;
-    } else if (Array.isArray(value)) {
-      displayValue = value.map((item) => String(item)).join(', ');
-    } else if (typeof value === 'object') {
-      displayValue = JSON.stringify(value);
-    } else {
-      displayValue = String(value);
-    }
-    if (!displayValue && displayValue !== '0') {
-      return '';
-    }
-    return `<li><span class="param-key">${escapeHtml(key)}</span><span class="param-value">${escapeHtml(displayValue)}</span></li>`;
-  }).filter(Boolean);
-  if (!items.length) {
-    return '<span class="text-muted">-</span>';
-  }
-  return `<ul class="param-list">${items.join('')}</ul>`;
 }
 
 function formatDate(value) {
@@ -200,14 +164,14 @@ function renderRows(runs) {
   runs.forEach((run) => {
     const row = document.createElement('tr');
     const targetEnv = run.parameters?.target_env ?? '-';
-    const parameterSummary = formatParameterSummary(run.parameters);
     const outputLink = run.status === 'Succeeded' && run.outputPrefix
       ? `<a class="btn btn-soft btn-sm" href="/output?prefix=${encodeURIComponent(run.outputPrefix)}">Outputs</a>`
       : '';
+    const parametersButton = `<button class="btn btn-soft btn-sm parameters-btn" data-id="${run.id}" type="button">View</button>`;
     row.innerHTML = `
       <td>${escapeHtml(formatDate(run.createdAt))}</td>
       <td>${escapeHtml(run.id)}</td>
-      <td>${parameterSummary}</td>
+      <td>${parametersButton}</td>
       <td>${escapeHtml(targetEnv)}</td>
       <td>${statusBadge(run.status)}</td>
       <td>${escapeHtml(formatDate(run.updatedAt))}</td>
@@ -248,6 +212,15 @@ function showDetails(run) {
   if (!detailsContent) return;
   detailsContent.textContent = JSON.stringify(run, null, 2);
   detailsModal?.show();
+}
+
+function showParameters(run) {
+  if (!parametersContent) return;
+  const content = run?.parameters && typeof run.parameters === 'object'
+    ? JSON.stringify(run.parameters, null, 2)
+    : 'No parameters recorded.';
+  parametersContent.textContent = content;
+  parametersModal?.show();
 }
 
 function attachEventListeners() {
@@ -323,6 +296,17 @@ function attachEventListeners() {
             showDetails(run);
           }
         }
+        return;
+      }
+      const parametersButton = event.target.closest('.parameters-btn');
+      if (parametersButton) {
+        const id = parametersButton.getAttribute('data-id');
+        if (id) {
+          const run = allRuns.find((item) => item.id === id);
+          if (run) {
+            showParameters(run);
+          }
+        }
       }
     });
   }
@@ -335,6 +319,9 @@ attachEventListeners();
     await ensureHealth();
     if (window.bootstrap && detailsModalEl) {
       detailsModal = new window.bootstrap.Modal(detailsModalEl);
+    }
+    if (window.bootstrap && parametersModalEl) {
+      parametersModal = new window.bootstrap.Modal(parametersModalEl);
     }
     await loadRuns();
   } catch (error) {
