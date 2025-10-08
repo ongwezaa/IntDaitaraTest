@@ -60,6 +60,7 @@ main {
   border-radius: 0.5rem;
   padding: 1rem;
   min-height: 200px;
+  max-height: 65vh;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -83,13 +84,16 @@ main {
   background: #fff;
 }
 
-.file-browser .list-group-item {
-  border: none;
-  border-bottom: 1px solid #eef1f6;
+.file-browser table {
+  margin-bottom: 0;
 }
 
-.file-browser .list-group-item:last-child {
-  border-bottom: none;
+.file-browser tbody tr.folder-row {
+  cursor: pointer;
+}
+
+.file-browser tbody tr.folder-row:hover {
+  background-color: rgba(110, 195, 255, 0.12);
 }
 
 .file-browser .folder-icon,
@@ -109,16 +113,46 @@ main {
   color: #64748b;
 }
 
-.file-browser .list-group-item-action:hover,
-.file-browser .list-group-item-action:focus {
-  background-color: rgba(110, 195, 255, 0.12);
-}
-
 .breadcrumb-container {
   background: rgba(255, 255, 255, 0.8);
   border: 1px solid #dee2e6;
   border-radius: 0.5rem;
   padding: 0.5rem 0.75rem;
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  padding-right: 1.5rem;
+}
+
+.sortable::after {
+  content: '\25B4\25BE';
+  font-size: 0.6rem;
+  position: absolute;
+  right: 0.35rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(100, 116, 139, 0.6);
+}
+
+.sortable[data-direction='asc']::after {
+  content: '\25B4';
+  color: #1d4ed8;
+}
+
+.sortable[data-direction='desc']::after {
+  content: '\25BE';
+  color: #1d4ed8;
+}
+
+#paginationControls .btn {
+  min-width: 5.5rem;
+}
+
+#pageSummary {
+  min-height: 1.5rem;
 }
 
 .spinner-border.spinner-border-sm {

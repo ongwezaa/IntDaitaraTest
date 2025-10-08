@@ -3,6 +3,12 @@ import { API_BASE, apiFetch, ensureHealth } from './config.js';
 const prefixInput = document.getElementById('prefixInput');
 const listBtn = document.getElementById('listBtn');
 const fileList = document.getElementById('fileList');
+const searchInput = document.getElementById('searchInput');
+const pageSizeSelect = document.getElementById('pageSizeSelect');
+const prevPageBtn = document.getElementById('prevPageBtn');
+const nextPageBtn = document.getElementById('nextPageBtn');
+const pageSummary = document.getElementById('pageSummary');
+const sortableHeaders = document.querySelectorAll('#fileTable th.sortable');
 const previewPane = document.getElementById('previewPane');
 const alertContainer = document.getElementById('alertContainer');
 const breadcrumb = document.getElementById('breadcrumb');
@@ -10,6 +16,12 @@ const upBtn = document.getElementById('upBtn');
 
 let currentPrefix = 'output/';
 let activePreview = { name: '', contentType: '' };
+let allItems = [];
+let filteredItems = [];
+let currentPage = 1;
+let sortKey = 'displayName';
+let sortDirection = 'asc';
+let searchDebounce;
 
 function showAlert(message, type = 'danger') {
   const wrapper = document.createElement('div');
@@ -106,55 +118,159 @@ function renderBreadcrumb() {
 
 function renderList(items) {
   fileList.innerHTML = '';
+
   if (canGoUp()) {
-    const li = document.createElement('li');
-    li.className = 'list-group-item list-group-item-action d-flex align-items-center gap-2';
-    li.dataset.kind = 'up';
-    li.innerHTML = '<span class="folder-icon">⬆️</span><span class="fw-semibold">..</span>';
-    fileList.appendChild(li);
+    const row = document.createElement('tr');
+    row.dataset.kind = 'up';
+    row.className = 'folder-row';
+    row.innerHTML = `
+      <td>
+        <div class="d-flex align-items-center gap-2">
+          <span class="folder-icon">⬆️</span>
+          <span class="fw-semibold">..</span>
+        </div>
+      </td>
+      <td>Parent</td>
+      <td class="text-end text-muted">-</td>
+      <td class="text-muted">-</td>
+      <td class="text-end"><button class="btn btn-link btn-sm p-0">Open</button></td>
+    `;
+    fileList.appendChild(row);
   }
 
   if (!items.length) {
-    const li = document.createElement('li');
-    li.className = 'list-group-item text-muted';
-    li.textContent = 'This folder is empty';
-    fileList.appendChild(li);
+    const row = document.createElement('tr');
+    row.innerHTML = '<td colspan="5" class="text-center text-muted py-4">No items found</td>';
+    fileList.appendChild(row);
     return;
   }
 
   items.forEach((item) => {
-    const li = document.createElement('li');
+    const row = document.createElement('tr');
+    row.dataset.kind = item.kind;
     if (item.kind === 'folder') {
-      li.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
-      li.dataset.kind = 'folder';
-      li.dataset.path = item.name;
-      li.innerHTML = `
-        <div class="d-flex align-items-center gap-2">
-          <span class="folder-icon">📁</span>
-          <span class="fw-semibold">${item.displayName}</span>
-        </div>
-        <span class="badge text-bg-light">Folder</span>
+      row.dataset.path = item.name;
+      row.classList.add('folder-row');
+      row.innerHTML = `
+        <td>
+          <div class="d-flex align-items-center gap-2">
+            <span class="folder-icon">📁</span>
+            <span class="fw-semibold">${item.displayName}</span>
+          </div>
+        </td>
+        <td>Folder</td>
+        <td class="text-end text-muted">-</td>
+        <td class="text-muted">-</td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-primary" data-open-folder="${item.name}">Open</button>
+        </td>
       `;
     } else {
-      li.className = 'list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2';
-      li.dataset.kind = 'file';
-      li.dataset.path = item.name;
       const timestamp = item.lastModified ? new Date(item.lastModified).toLocaleString() : '-';
-      li.innerHTML = `
-        <div>
+      row.dataset.path = item.name;
+      row.innerHTML = `
+        <td>
           <div class="d-flex align-items-center gap-2">
             <span class="file-icon">📄</span>
             <span class="fw-semibold">${item.displayName}</span>
           </div>
-          <small class="text-muted d-block">${formatSize(item.size ?? 0)} • ${timestamp}</small>
-        </div>
-        <div class="d-flex align-items-center">
-          <button class="btn btn-sm btn-outline-primary me-2 preview-btn" data-name="${item.name}">Preview</button>
-          <a class="btn btn-sm btn-success" data-download="true" href="${API_BASE}/output/download?blob=${encodeURIComponent(item.name)}">Download</a>
-        </div>
+        </td>
+        <td>File</td>
+        <td class="text-end">${formatSize(item.size ?? 0)}</td>
+        <td>${timestamp}</td>
+        <td class="text-end">
+          <div class="btn-group btn-group-sm" role="group">
+            <button class="btn btn-outline-primary preview-btn" data-name="${item.name}">Preview</button>
+            <a class="btn btn-success" data-download="true" href="${API_BASE}/output/download?blob=${encodeURIComponent(item.name)}">Download</a>
+          </div>
+        </td>
       `;
     }
-    fileList.appendChild(li);
+    fileList.appendChild(row);
+  });
+}
+
+function sortItems(items) {
+  const sorted = [...items];
+  const key = sortKey;
+  const direction = sortDirection === 'desc' ? -1 : 1;
+  sorted.sort((a, b) => {
+    if (key !== 'kind' && a.kind !== b.kind) {
+      return a.kind === 'folder' ? -1 : 1;
+    }
+
+    let valueA;
+    let valueB;
+
+    switch (key) {
+      case 'size':
+        valueA = a.size ?? -1;
+        valueB = b.size ?? -1;
+        break;
+      case 'lastModified':
+        valueA = a.lastModified ? new Date(a.lastModified).getTime() : 0;
+        valueB = b.lastModified ? new Date(b.lastModified).getTime() : 0;
+        break;
+      case 'kind':
+        valueA = a.kind;
+        valueB = b.kind;
+        break;
+      default:
+        valueA = a.displayName.toLowerCase();
+        valueB = b.displayName.toLowerCase();
+    }
+
+    if (valueA < valueB) return -1 * direction;
+    if (valueA > valueB) return 1 * direction;
+    return 0;
+  });
+  return sorted;
+}
+
+function getPageSize() {
+  const value = Number(pageSizeSelect.value);
+  return Number.isFinite(value) && value > 0 ? value : 20;
+}
+
+function updatePagination(totalItems, pageSize) {
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  if (currentPage > totalPages) {
+    currentPage = totalPages;
+  }
+  const startIndex = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endIndex = Math.min(totalItems, currentPage * pageSize);
+  pageSummary.textContent = totalItems
+    ? `Showing ${startIndex} – ${endIndex} of ${totalItems} items`
+    : 'No items to display';
+  prevPageBtn.disabled = currentPage <= 1;
+  nextPageBtn.disabled = currentPage >= totalPages || totalItems === 0;
+}
+
+function applyFilters({ resetPage = false } = {}) {
+  const term = searchInput.value.trim().toLowerCase();
+  filteredItems = allItems.filter((item) => {
+    if (!term) return true;
+    return item.displayName.toLowerCase().includes(term);
+  });
+  filteredItems = sortItems(filteredItems);
+  if (resetPage) {
+    currentPage = 1;
+  }
+  const pageSize = getPageSize();
+  updatePagination(filteredItems.length, pageSize);
+  const start = (currentPage - 1) * pageSize;
+  const pageItems = filteredItems.slice(start, start + pageSize);
+  renderList(pageItems);
+}
+
+function updateSortIndicators() {
+  sortableHeaders.forEach((header) => {
+    const key = header.dataset.sort;
+    if (key === sortKey) {
+      header.dataset.direction = sortDirection;
+    } else {
+      header.removeAttribute('data-direction');
+    }
   });
 }
 
@@ -211,7 +327,9 @@ function renderPreview(content, contentType) {
 async function loadList() {
   try {
     const items = await apiFetch(`/output/list?prefix=${encodeURIComponent(currentPrefix)}`);
-    renderList(items);
+    allItems = Array.isArray(items) ? items : [];
+    applyFilters({ resetPage: true });
+    updateSortIndicators();
   } catch (error) {
     showAlert(error.message || 'Failed to list output files');
   }
@@ -257,6 +375,49 @@ upBtn.addEventListener('click', () => {
   loadList();
 });
 
+searchInput.addEventListener('input', () => {
+  if (searchDebounce) {
+    clearTimeout(searchDebounce);
+  }
+  searchDebounce = setTimeout(() => {
+    applyFilters({ resetPage: true });
+  }, 200);
+});
+
+pageSizeSelect.addEventListener('change', () => {
+  currentPage = 1;
+  applyFilters();
+});
+
+prevPageBtn.addEventListener('click', () => {
+  if (currentPage <= 1) return;
+  currentPage -= 1;
+  applyFilters();
+});
+
+nextPageBtn.addEventListener('click', () => {
+  const pageSize = getPageSize();
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
+  if (currentPage >= totalPages) return;
+  currentPage += 1;
+  applyFilters();
+});
+
+sortableHeaders.forEach((header) => {
+  header.addEventListener('click', () => {
+    const key = header.dataset.sort;
+    if (!key) return;
+    if (sortKey === key) {
+      sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortKey = key;
+      sortDirection = key === 'size' || key === 'lastModified' ? 'desc' : 'asc';
+    }
+    updateSortIndicators();
+    applyFilters();
+  });
+});
+
 breadcrumb.addEventListener('click', (event) => {
   const link = event.target.closest('a[data-prefix]');
   if (!link) return;
@@ -266,21 +427,10 @@ breadcrumb.addEventListener('click', (event) => {
 });
 
 fileList.addEventListener('click', (event) => {
-  const upItem = event.target.closest('li[data-kind="up"]');
+  const upItem = event.target.closest('tr[data-kind="up"]');
   if (upItem) {
     setCurrentPrefix(getParentPrefix(currentPrefix));
     loadList();
-    return;
-  }
-
-  const folderItem = event.target.closest('li[data-kind="folder"]');
-  if (folderItem) {
-    const path = folderItem.dataset.path;
-    if (path) {
-      setCurrentPrefix(path);
-      loadList();
-      previewPane.textContent = 'Select a file to preview';
-    }
     return;
   }
 
@@ -289,6 +439,28 @@ fileList.addEventListener('click', (event) => {
     const name = button.getAttribute('data-name');
     if (name) {
       previewBlob(name);
+    }
+    return;
+  }
+
+  const openFolder = event.target.closest('[data-open-folder]');
+  if (openFolder) {
+    const path = openFolder.getAttribute('data-open-folder');
+    if (path) {
+      setCurrentPrefix(path);
+      loadList();
+      previewPane.textContent = 'Select a file to preview';
+    }
+    return;
+  }
+
+  const folderRow = event.target.closest('tr[data-kind="folder"]');
+  if (folderRow && !event.target.closest('a, button')) {
+    const path = folderRow.dataset.path;
+    if (path) {
+      setCurrentPrefix(path);
+      loadList();
+      previewPane.textContent = 'Select a file to preview';
     }
   }
 });
