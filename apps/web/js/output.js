@@ -125,15 +125,23 @@ function renderList(items) {
     row.className = 'folder-row';
     row.innerHTML = `
       <td>
-        <div class="d-flex align-items-center gap-2">
-          <span class="folder-icon">⬆️</span>
-          <span class="fw-semibold">..</span>
+        <div class="d-flex align-items-center gap-3">
+          <span class="item-icon up"><i class="bi bi-arrow-up-right"></i></span>
+          <div>
+            <div class="fw-semibold text-primary">Parent</div>
+            <div class="text-muted small">Back to previous level</div>
+          </div>
         </div>
       </td>
-      <td>Parent</td>
+      <td>Folder</td>
       <td class="text-end text-muted">-</td>
       <td class="text-muted">-</td>
-      <td class="text-end"><button class="btn btn-link btn-sm p-0">Open</button></td>
+      <td class="text-end">
+        <button class="btn btn-link btn-sm p-0 text-decoration-none d-inline-flex align-items-center gap-1">
+          <i class="bi bi-arrow-up-right"></i>
+          Open
+        </button>
+      </td>
     `;
     fileList.appendChild(row);
   }
@@ -153,8 +161,8 @@ function renderList(items) {
       row.classList.add('folder-row');
       row.innerHTML = `
         <td>
-          <div class="d-flex align-items-center gap-2">
-            <span class="folder-icon">📁</span>
+          <div class="d-flex align-items-center gap-3">
+            <span class="item-icon folder"><i class="bi bi-folder-fill"></i></span>
             <span class="fw-semibold">${item.displayName}</span>
           </div>
         </td>
@@ -170,8 +178,8 @@ function renderList(items) {
       row.dataset.path = item.name;
       row.innerHTML = `
         <td>
-          <div class="d-flex align-items-center gap-2">
-            <span class="file-icon">📄</span>
+          <div class="d-flex align-items-center gap-3">
+            <span class="item-icon file"><i class="bi bi-file-earmark-text"></i></span>
             <span class="fw-semibold">${item.displayName}</span>
           </div>
         </td>
@@ -229,7 +237,7 @@ function sortItems(items) {
 
 function getPageSize() {
   const value = Number(pageSizeSelect.value);
-  return Number.isFinite(value) && value > 0 ? value : 20;
+  return Number.isFinite(value) && value > 0 ? value : 10;
 }
 
 function updatePagination(totalItems, pageSize) {

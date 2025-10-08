@@ -48,39 +48,55 @@ main {
   padding: 2rem 0;
 }
 
+.search-card .card-header {
+  padding-bottom: 0;
+}
+
+.criteria-row .btn {
+  height: 100%;
+}
+
+.section-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
 .table td,
 .table th {
   vertical-align: middle;
 }
 
-#previewPane {
+.preview-pane {
   white-space: pre-wrap;
   background: #fff;
   border: 1px solid #dee2e6;
   border-radius: 0.5rem;
   padding: 1rem;
   min-height: 200px;
-  max-height: 65vh;
+  max-height: 55vh;
   overflow-y: auto;
   overflow-x: hidden;
 }
 
-#previewPane pre,
-#previewPane code {
+.preview-pane pre,
+.preview-pane code {
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: anywhere;
   margin-bottom: 0;
 }
 
-#previewPane table {
+.preview-pane table {
   width: 100%;
   margin-bottom: 0;
 }
 
 .file-browser {
   border: 1px solid #dee2e6;
-  border-radius: 0.5rem;
+  border-radius: 0.75rem;
   background: #fff;
 }
 
@@ -96,21 +112,34 @@ main {
   background-color: rgba(110, 195, 255, 0.12);
 }
 
-.file-browser .folder-icon,
-.file-browser .file-icon {
-  width: 1.75rem;
+.file-browser .item-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.75rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 1.1rem;
 }
 
-.file-browser .folder-icon {
-  color: #d58f00;
+.file-browser .item-icon i {
+  line-height: 1;
 }
 
-.file-browser .file-icon {
-  color: #64748b;
+.file-browser .item-icon.folder {
+  background: linear-gradient(135deg, rgba(253, 230, 138, 0.6), rgba(251, 191, 36, 0.9));
+  color: #854d0e;
+}
+
+.file-browser .item-icon.file {
+  background: rgba(148, 163, 184, 0.25);
+  color: #1e293b;
+}
+
+.file-browser .item-icon.up {
+  background: linear-gradient(135deg, #38bdf8, #6366f1);
+  color: #f8fafc;
+  box-shadow: 0 8px 16px rgba(79, 70, 229, 0.25);
 }
 
 .breadcrumb-container {
@@ -118,6 +147,10 @@ main {
   border: 1px solid #dee2e6;
   border-radius: 0.5rem;
   padding: 0.5rem 0.75rem;
+}
+
+.breadcrumb-container .breadcrumb {
+  margin-bottom: 0;
 }
 
 .sortable {
@@ -147,8 +180,9 @@ main {
   color: #1d4ed8;
 }
 
+
 #paginationControls .btn {
-  min-width: 5.5rem;
+  min-width: 6rem;
 }
 
 #pageSummary {
