@@ -109,17 +109,14 @@ const EXTENSION_ICON_MAP = {
   pdf: 'pdf',
 };
 
-const BADGE_ICON_MAP = {
-  excel: { label: 'X', wrapperClass: 'excel' },
-  txt: { label: 'TXT', wrapperClass: 'txt' },
-  json: { label: '{}', wrapperClass: 'json' },
-};
-
 const ICON_CLASS_BY_VARIANT = {
   csv: 'bi bi-filetype-csv',
+  txt: 'bi bi-filetype-txt',
+  json: 'bi bi-filetype-json',
+  excel: 'bi bi-file-earmark-excel',
   sql: 'bi bi-filetype-sql',
   xml: 'bi bi-filetype-xml',
-  pdf: 'bi bi-filetype-pdf',
+  pdf: 'bi bi-file-earmark-pdf',
   default: 'bi bi-file-earmark',
 };
 
@@ -127,16 +124,9 @@ function getFileIconInfo(name = '') {
   const match = name.toLowerCase().match(/\.([a-z0-9]+)$/);
   const extension = match ? match[1] : '';
   const variant = EXTENSION_ICON_MAP[extension] || 'default';
-  if (BADGE_ICON_MAP[variant]) {
-    return {
-      type: 'badge',
-      wrapperClass: BADGE_ICON_MAP[variant].wrapperClass,
-      label: BADGE_ICON_MAP[variant].label,
-    };
-  }
   const iconClass = ICON_CLASS_BY_VARIANT[variant] || ICON_CLASS_BY_VARIANT.default;
-  const wrapperClass = variant === 'default' ? 'default' : 'iconic';
-  return { type: 'icon', wrapperClass, iconClass };
+  const wrapperClass = variant;
+  return { iconClass, wrapperClass };
 }
 
 function renderBreadcrumb() {
@@ -248,14 +238,10 @@ function renderList(items) {
       const iconClasses = ['item-icon', 'file'];
       if (iconInfo.wrapperClass) {
         iconClasses.push(iconInfo.wrapperClass);
-      }
-      let iconMarkup;
-      if (iconInfo.type === 'badge') {
-        iconMarkup = `<span class="${iconClasses.join(' ')}" aria-hidden="true"><span class="icon-label">${iconInfo.label}</span></span>`;
       } else {
-        iconMarkup = `<span class="${iconClasses.join(' ')}" aria-hidden="true"><i class="${iconInfo.iconClass}"></i></span>`;
+        iconClasses.push('default');
       }
-      iconMarkup = iconMarkup.trim();
+      const iconMarkup = `<span class="${iconClasses.join(' ')}" aria-hidden="true"><i class="${iconInfo.iconClass}"></i></span>`;
       row.innerHTML = `
         <td>
           <div class="d-flex align-items-center gap-2">
