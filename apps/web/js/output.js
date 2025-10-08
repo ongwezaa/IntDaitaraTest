@@ -8,6 +8,7 @@ const nextPageBtn = document.getElementById('nextPageBtn');
 const pageSummary = document.getElementById('pageSummary');
 const sortableHeaders = document.querySelectorAll('#fileTable th.sortable');
 const previewPane = document.getElementById('previewPane');
+const copyPreviewBtn = document.getElementById('copyPreviewBtn');
 const alertContainer = document.getElementById('alertContainer');
 const breadcrumb = document.getElementById('breadcrumb');
 
@@ -19,6 +20,8 @@ let currentPage = 1;
 let sortKey = 'displayName';
 let sortDirection = 'asc';
 let searchDebounce;
+let lastPreviewText = '';
+const copyButtonDefaultLabel = copyPreviewBtn ? copyPreviewBtn.textContent.trim() : 'Copy';
 
 function showAlert(message, type = 'danger') {
   const wrapper = document.createElement('div');
@@ -68,6 +71,15 @@ function updateUrl() {
   window.history.replaceState(null, '', next);
 }
 
+function formatSegmentLabel(segment) {
+  if (!segment) return '';
+  try {
+    return decodeURIComponent(segment).replace(/\+/g, ' ');
+  } catch (error) {
+    return segment;
+  }
+}
+
 function renderBreadcrumb() {
   breadcrumb.innerHTML = '';
   const nav = document.createElement('nav');
@@ -76,32 +88,38 @@ function renderBreadcrumb() {
   ol.className = 'breadcrumb mb-0';
 
   const segments = currentPrefix.replace(/\/$/, '').split('/').filter(Boolean);
+  const hasSegments = segments.length > 0;
+  const rootSegment = hasSegments ? segments[0] : 'output';
+  const rootLabel = 'Documents';
+  const rootPath = `${rootSegment}/`;
   const rootLi = document.createElement('li');
-  if (!segments.length) {
+
+  if (segments.length <= 1) {
     rootLi.className = 'breadcrumb-item active';
-    rootLi.textContent = 'root';
+    rootLi.textContent = rootLabel;
   } else {
     rootLi.className = 'breadcrumb-item';
     const link = document.createElement('a');
     link.href = '#';
-    link.textContent = 'root';
-    link.dataset.prefix = '';
+    link.textContent = rootLabel;
+    link.dataset.prefix = rootPath;
     rootLi.appendChild(link);
   }
   ol.appendChild(rootLi);
 
-  let cumulative = '';
-  segments.forEach((segment, index) => {
-    cumulative = cumulative ? `${cumulative}/${segment}` : segment;
+  let cumulative = rootSegment;
+  const tail = segments.slice(1);
+  tail.forEach((segment, index) => {
+    cumulative = `${cumulative}/${segment}`;
     const li = document.createElement('li');
-    if (index === segments.length - 1) {
+    if (index === tail.length - 1) {
       li.className = 'breadcrumb-item active';
-      li.textContent = segment;
+      li.textContent = formatSegmentLabel(segment);
     } else {
       li.className = 'breadcrumb-item';
       const link = document.createElement('a');
       link.href = '#';
-      link.textContent = segment;
+      link.textContent = formatSegmentLabel(segment);
       link.dataset.prefix = `${cumulative}/`;
       li.appendChild(link);
     }
@@ -110,6 +128,16 @@ function renderBreadcrumb() {
 
   nav.appendChild(ol);
   breadcrumb.appendChild(nav);
+}
+
+function resetPreview(message = 'Select a file to preview') {
+  previewPane.textContent = message;
+  activePreview = { name: '', contentType: '' };
+  lastPreviewText = '';
+  if (copyPreviewBtn) {
+    copyPreviewBtn.disabled = true;
+    copyPreviewBtn.textContent = copyButtonDefaultLabel;
+  }
 }
 
 function renderList(items) {
@@ -150,7 +178,7 @@ function renderList(items) {
       row.innerHTML = `
         <td>
           <div class="d-flex align-items-center gap-2">
-            <span class="item-icon folder" aria-hidden="true"><i class="bi bi-folder2"></i></span>
+            <span class="item-icon folder" aria-hidden="true"><i class="bi bi-folder-fill"></i></span>
             <span class="fw-semibold">${item.displayName}</span>
           </div>
         </td>
@@ -165,7 +193,7 @@ function renderList(items) {
       row.innerHTML = `
         <td>
           <div class="d-flex align-items-center gap-2">
-            <span class="item-icon file" aria-hidden="true"><i class="bi bi-file-earmark-text"></i></span>
+            <span class="item-icon file" aria-hidden="true"><i class="bi bi-file-earmark"></i></span>
             <span class="fw-semibold">${item.displayName}</span>
           </div>
         </td>
@@ -277,10 +305,11 @@ function renderPreview(content, contentType) {
   if (contentType.includes('application/json')) {
     try {
       const parsed = JSON.parse(content);
+      const formatted = JSON.stringify(parsed, null, 2);
       const pre = document.createElement('pre');
-      pre.textContent = JSON.stringify(parsed, null, 2);
+      pre.textContent = formatted;
       previewPane.appendChild(pre);
-      return;
+      return formatted;
     } catch {
       // fall through
     }
@@ -300,7 +329,7 @@ function renderPreview(content, contentType) {
       table.appendChild(tr);
     });
     previewPane.appendChild(table);
-    return;
+    return content;
   }
 
   if (contentType.includes('sql') || activePreview.name.toLowerCase().endsWith('.sql')) {
@@ -310,7 +339,7 @@ function renderPreview(content, contentType) {
         const pre = document.createElement('pre');
         pre.textContent = formatted;
         previewPane.appendChild(pre);
-        return;
+        return formatted;
       }
     } catch {
       // ignore formatter errors
@@ -320,6 +349,7 @@ function renderPreview(content, contentType) {
   const pre = document.createElement('pre');
   pre.textContent = content;
   previewPane.appendChild(pre);
+  return content;
 }
 
 async function loadList() {
@@ -336,10 +366,16 @@ async function loadList() {
 async function previewBlob(name) {
   activePreview = { name, contentType: '' };
   previewPane.textContent = 'Loading preview...';
+  lastPreviewText = '';
+  if (copyPreviewBtn) {
+    copyPreviewBtn.disabled = true;
+    copyPreviewBtn.textContent = copyButtonDefaultLabel;
+  }
   try {
     const response = await fetch(`${API_BASE}/output/preview?blob=${encodeURIComponent(name)}`);
     if (response.status === 413) {
       previewPane.textContent = 'File is too large or not previewable. Please download instead.';
+      lastPreviewText = '';
       return;
     }
     if (!response.ok) {
@@ -348,9 +384,19 @@ async function previewBlob(name) {
     const contentType = response.headers.get('content-type') || 'text/plain';
     activePreview.contentType = contentType;
     const text = await response.text();
-    renderPreview(text, contentType);
+    const copyValue = renderPreview(text, contentType);
+    lastPreviewText = typeof copyValue === 'string' ? copyValue : text;
+    if (copyPreviewBtn) {
+      copyPreviewBtn.disabled = !lastPreviewText;
+      copyPreviewBtn.textContent = copyButtonDefaultLabel;
+    }
   } catch (error) {
     previewPane.textContent = 'Preview failed.';
+    lastPreviewText = '';
+    if (copyPreviewBtn) {
+      copyPreviewBtn.disabled = true;
+      copyPreviewBtn.textContent = copyButtonDefaultLabel;
+    }
     showAlert(error.message || 'Preview failed');
   }
 }
@@ -360,6 +406,8 @@ function setCurrentPrefix(prefix) {
   renderBreadcrumb();
   updateUrl();
 }
+
+resetPreview();
 
 searchInput.addEventListener('input', () => {
   if (searchDebounce) {
@@ -417,6 +465,7 @@ fileList.addEventListener('click', (event) => {
   if (upItem) {
     setCurrentPrefix(getParentPrefix(currentPrefix));
     loadList();
+    resetPreview();
     return;
   }
 
@@ -435,10 +484,31 @@ fileList.addEventListener('click', (event) => {
     if (path) {
       setCurrentPrefix(path);
       loadList();
-      previewPane.textContent = 'Select a file to preview';
+      resetPreview();
     }
   }
 });
+
+if (copyPreviewBtn) {
+  copyPreviewBtn.addEventListener('click', async () => {
+    if (!lastPreviewText) {
+      return;
+    }
+    if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+      showAlert('Clipboard copying is not supported in this browser.', 'warning');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(lastPreviewText);
+      copyPreviewBtn.textContent = 'Copied!';
+      setTimeout(() => {
+        copyPreviewBtn.textContent = copyButtonDefaultLabel;
+      }, 1500);
+    } catch (error) {
+      showAlert('Failed to copy preview to the clipboard.', 'danger');
+    }
+  });
+}
 
 (async () => {
   try {
