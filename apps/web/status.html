@@ -61,8 +61,8 @@
               type="search"
               class="form-control"
               id="searchInput"
-              placeholder="Search run ID, file, or target"
-              aria-label="Search run ID, file, or target"
+              placeholder="Search run ID or parameters"
+              aria-label="Search run ID or parameters"
             />
           </div>
         </div>
@@ -76,7 +76,6 @@
                 <tr>
                   <th scope="col" data-sort="createdAt" class="sortable" data-direction="desc"><span class="header-label">Created</span></th>
                   <th scope="col" data-sort="id" class="sortable"><span class="header-label">Run ID</span></th>
-                  <th scope="col" data-sort="fileName" class="sortable"><span class="header-label">Primary file</span></th>
                   <th scope="col" data-sort="parameters" class="sortable"><span class="header-label">Parameters</span></th>
                   <th scope="col" data-sort="targetEnv" class="sortable"><span class="header-label">Target env</span></th>
                   <th scope="col" data-sort="status" class="sortable"><span class="header-label">Status</span></th>
@@ -88,12 +87,12 @@
             </table>
           </div>
           <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 p-3">
-            <div class="d-flex flex-wrap align-items-center gap-3">
+            <div class="d-flex flex-wrap align-items-center gap-3" id="pageSizeContainer">
               <label class="form-label form-label-sm mb-0" for="pageSizeSelect">Page size</label>
               <select class="form-select form-select-sm" id="pageSizeSelect">
                 <option value="10" selected>10</option>
                 <option value="20">20</option>
-                <option value="50">50</option>
+                <option value="100">100</option>
               </select>
               <div class="text-muted small" id="pageSummary"></div>
             </div>

@@ -31,7 +31,6 @@ export function createLogicAppRouter(store: RunStore) {
       const triggerResult = await triggerLogicApp({ payload });
       const run = store.create({
         id: runId,
-        fileName,
         fileUrl: typeof payload.file === 'string' ? String(payload.file) : buildBlobSas(fileName, 'r', appConfig.sasExpiryMinutes),
         parameters: params,
         outputPrefix: `${appConfig.outputPrefix}${runId}/`,

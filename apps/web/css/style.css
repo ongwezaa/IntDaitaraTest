@@ -122,9 +122,19 @@ main {
   width: 100%;
 }
 
+.search-input.search-compact {
+  max-width: 280px;
+  min-width: 200px;
+}
+
 @media (max-width: 576px) {
   .search-input {
     max-width: none;
+  }
+
+  .search-input.search-compact {
+    max-width: none;
+    min-width: 0;
   }
 }
 
@@ -153,6 +163,51 @@ main {
 
 .search-input .form-control::placeholder {
   color: #94a3b8;
+}
+
+.parameter-row {
+  margin-bottom: 1rem;
+}
+
+.parameter-row:last-of-type {
+  margin-bottom: 0;
+}
+
+.parameter-row .col-form-label {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.param-list {
+  list-style: none;
+  padding-left: 0;
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.param-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: baseline;
+}
+
+.param-list .param-key {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.param-list .param-key::after {
+  content: ':';
+  margin-right: 0.35rem;
+  color: #64748b;
+}
+
+.param-list .param-value {
+  color: #334155;
+  word-break: break-word;
 }
 
 .table td,

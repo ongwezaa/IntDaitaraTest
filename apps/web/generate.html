@@ -45,43 +45,38 @@
     <main class="container py-4">
       <h1 class="h3 mb-4">Generate test script</h1>
 
-      <section class="card shadow-sm search-card mb-4">
-        <div class="card-body">
-          <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 search-row">
-            <div class="breadcrumb-container" id="breadcrumb"></div>
-            <div class="search-input input-group input-group-sm flex-grow-1 flex-md-grow-0">
-              <span class="input-group-text" aria-hidden="true">
-                <i class="bi bi-search"></i>
-              </span>
-              <input
-                type="search"
-                class="form-control"
-                id="searchInput"
-                placeholder="Search name"
-                aria-label="Search name"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section class="card shadow-sm mb-4">
         <div class="card-header bg-transparent border-0 pb-0">
-          <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
-            <div>
-              <h2 class="h5 mb-1">Files &amp; folders</h2>
+          <div class="d-flex flex-column gap-3">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+              <h2 class="h5 mb-0">Files &amp; folders</h2>
             </div>
-            <div class="d-flex flex-wrap align-items-center gap-2">
-              <button class="btn btn-soft" id="createFolderBtn" type="button">
-                <i class="bi bi-folder-plus me-1"></i>
-                New folder
-              </button>
-              <div class="upload-control d-flex align-items-center gap-2">
-                <input class="form-control form-control-sm" type="file" id="uploadInput" />
-                <button class="btn btn-gradient btn-sm" id="uploadBtn" type="button">
-                  <span class="spinner-border spinner-border-sm d-none" id="uploadSpinner"></span>
-                  Upload
+            <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+              <div class="breadcrumb-container" id="breadcrumb"></div>
+              <div class="d-flex flex-wrap align-items-center justify-content-end gap-2">
+                <div class="search-input input-group input-group-sm search-compact">
+                  <span class="input-group-text" aria-hidden="true">
+                    <i class="bi bi-search"></i>
+                  </span>
+                  <input
+                    type="search"
+                    class="form-control"
+                    id="searchInput"
+                    placeholder="Search name"
+                    aria-label="Search name"
+                  />
+                </div>
+                <button class="btn btn-soft" id="createFolderBtn" type="button">
+                  <i class="bi bi-folder-plus me-1"></i>
+                  New folder
                 </button>
+                <div class="upload-control d-flex align-items-center gap-2">
+                  <input class="form-control form-control-sm" type="file" id="uploadInput" />
+                  <button class="btn btn-gradient btn-sm" id="uploadBtn" type="button">
+                    <span class="spinner-border spinner-border-sm d-none" id="uploadSpinner"></span>
+                    Upload
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -124,30 +119,35 @@
           <h2 class="h5 mb-0">Trigger Logic App</h2>
         </div>
         <div class="card-body">
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label" for="fileSelect">Source file</label>
+          <div class="parameter-row row g-3 align-items-center">
+            <label class="col-12 col-lg-4 col-xl-3 col-form-label" for="fileSelect">Source file</label>
+            <div class="col-12 col-lg-8 col-xl-9">
               <select class="form-select" id="fileSelect"></select>
             </div>
-            <div class="col-md-6">
-              <label class="form-label" for="configSelect">Config file</label>
+          </div>
+          <div class="parameter-row row g-3 align-items-center">
+            <label class="col-12 col-lg-4 col-xl-3 col-form-label" for="configSelect">Config file</label>
+            <div class="col-12 col-lg-8 col-xl-9">
               <select class="form-select" id="configSelect"></select>
             </div>
-            <div class="col-md-6">
-              <label class="form-label" for="sourcePromptSelect">Source mapping prompt</label>
+          </div>
+          <div class="parameter-row row g-3 align-items-center">
+            <label class="col-12 col-lg-4 col-xl-3 col-form-label" for="sourcePromptSelect">Source mapping prompt</label>
+            <div class="col-12 col-lg-8 col-xl-9">
               <select class="form-select" id="sourcePromptSelect"></select>
             </div>
-            <div class="col-md-6">
-              <label class="form-label" for="selectPromptSelect">Select mapping prompt</label>
+          </div>
+          <div class="parameter-row row g-3 align-items-center mb-4">
+            <label class="col-12 col-lg-4 col-xl-3 col-form-label" for="selectPromptSelect">Select mapping prompt</label>
+            <div class="col-12 col-lg-8 col-xl-9">
               <select class="form-select" id="selectPromptSelect"></select>
             </div>
           </div>
-          <hr class="my-4" />
-          <div class="row g-3">
-            <div class="col-md-4">
-              <label class="form-label" for="targetType">Target type</label>
+          <div class="parameter-row row g-3 align-items-center">
+            <label class="col-12 col-lg-4 col-xl-3 col-form-label" for="targetType">Target type</label>
+            <div class="col-12 col-lg-8 col-xl-9">
               <select class="form-select" id="targetType">
-                <option value="Postgres" selected>Postgres</option>
+                <option value="Postgres">Postgres</option>
                 <option value="PostgreSQL">PostgreSQL</option>
                 <option value="Databricks">Databricks</option>
                 <option value="SQL Server">SQL Server</option>
@@ -155,27 +155,35 @@
                 <option value="Redshift">Redshift</option>
               </select>
             </div>
-            <div class="col-md-4">
-              <label class="form-label" for="targetEnv">Target environment</label>
+          </div>
+          <div class="parameter-row row g-3 align-items-center">
+            <label class="col-12 col-lg-4 col-xl-3 col-form-label" for="targetEnv">Target environment</label>
+            <div class="col-12 col-lg-8 col-xl-9">
               <select class="form-select" id="targetEnv">
-                <option value="DEV" selected>DEV</option>
+                <option value="DEV">DEV</option>
                 <option value="UAT">UAT</option>
                 <option value="PROD">PROD</option>
               </select>
             </div>
-            <div class="col-md-4">
-              <label class="form-label" for="mockRowCount">Mock row count</label>
+          </div>
+          <div class="parameter-row row g-3 align-items-center">
+            <label class="col-12 col-lg-4 col-xl-3 col-form-label" for="mockRowCount">Mock row count</label>
+            <div class="col-12 col-lg-8 col-xl-9">
               <input type="number" class="form-control" id="mockRowCount" min="1" value="200" />
             </div>
-            <div class="col-md-4">
-              <label class="form-label" for="autoTeardown">Auto teardown</label>
+          </div>
+          <div class="parameter-row row g-3 align-items-center">
+            <label class="col-12 col-lg-4 col-xl-3 col-form-label" for="autoTeardown">Auto teardown</label>
+            <div class="col-12 col-lg-8 col-xl-9">
               <select class="form-select" id="autoTeardown">
                 <option value="false">false</option>
                 <option value="true">true</option>
               </select>
             </div>
-            <div class="col-md-4">
-              <label class="form-label" for="generateDdl">Generate DDL</label>
+          </div>
+          <div class="parameter-row row g-3 align-items-center mb-4">
+            <label class="col-12 col-lg-4 col-xl-3 col-form-label" for="generateDdl">Generate DDL</label>
+            <div class="col-12 col-lg-8 col-xl-9">
               <select class="form-select" id="generateDdl">
                 <option value="true">true</option>
                 <option value="false">false</option>
@@ -184,7 +192,7 @@
           </div>
           <div class="mt-4">
             <label class="form-label" for="parametersPreview">Trigger parameters (JSON)</label>
-            <textarea class="form-control code-textarea" id="parametersPreview" rows="14"></textarea>
+            <textarea class="form-control code-textarea" id="parametersPreview" rows="18"></textarea>
           </div>
           <div class="d-flex flex-wrap gap-3 mt-4">
             <button class="btn btn-gradient" id="triggerBtn" type="button">

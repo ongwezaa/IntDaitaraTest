@@ -5,7 +5,6 @@ import { RunRecord, RunStatus } from '../types.js';
 
 interface RunCreateInput {
   id?: string;
-  fileName: string;
   fileUrl: string;
   parameters: Record<string, unknown>;
   outputPrefix: string;
@@ -26,8 +25,11 @@ export class RunStore {
     if (fs.existsSync(filePath)) {
       try {
         const raw = fs.readFileSync(filePath, 'utf-8');
-        const parsed: RunRecord[] = JSON.parse(raw);
-        parsed.forEach((item) => this.cache.set(item.id, item));
+        const parsed: (RunRecord & { fileName?: string })[] = JSON.parse(raw);
+        parsed.forEach((item) => {
+          const { fileName: _ignored, ...rest } = item;
+          this.cache.set(rest.id, rest);
+        });
       } catch (error) {
         console.error('Failed to read run store, starting empty', error);
       }
@@ -54,7 +56,6 @@ export class RunStore {
     const id = input.id ?? ulid();
     const run: RunRecord = {
       id,
-      fileName: input.fileName,
       fileUrl: input.fileUrl,
       logicRunId: input.logicRunId ?? null,
       trackingUrl: input.trackingUrl ?? null,

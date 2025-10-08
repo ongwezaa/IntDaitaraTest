@@ -8,7 +8,6 @@ export type RunStatus =
 
 export interface RunRecord {
   id: string;
-  fileName: string;
   fileUrl: string;
   logicRunId?: string | null;
   trackingUrl?: string | null;

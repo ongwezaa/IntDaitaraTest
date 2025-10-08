@@ -37,46 +37,43 @@ function showAlert(message, type = 'danger') {
   alertContainer?.appendChild(wrapper);
 }
 
-function extractBaseName(value = '') {
-  const trimmed = value.replace(/\/$/, '');
-  const parts = trimmed.split('/').filter(Boolean);
-  return parts.pop() || trimmed;
-}
-
 function formatParameterSummary(parameters = {}) {
   if (!parameters || typeof parameters !== 'object') {
     return '<span class="text-muted">-</span>';
   }
-  const fileKeys = ['file', 'config', 'sourceMappingPrompt', 'selectMappingPrompt'];
-  const chips = fileKeys
-    .map((key) => {
-      const value = parameters[key];
-      if (typeof value !== 'string' || !value.trim()) return '';
-      return `<span class="param-chip">${escapeHtml(extractBaseName(value.trim()))}</span>`;
-    })
-    .filter(Boolean);
-  const metaParts = [];
-  if (typeof parameters.target_type === 'string' && parameters.target_type.trim()) {
-    metaParts.push(`type: ${parameters.target_type}`);
-  }
-  if (typeof parameters.target_env === 'string' && parameters.target_env.trim()) {
-    metaParts.push(`env: ${parameters.target_env}`);
-  }
-  if (Number.isFinite(parameters.mock_row_count)) {
-    metaParts.push(`rows: ${parameters.mock_row_count}`);
-  }
-  if (typeof parameters.generate_ddl === 'boolean') {
-    metaParts.push(`ddl: ${parameters.generate_ddl ? 'yes' : 'no'}`);
-  }
-  if (typeof parameters.auto_teardown === 'boolean') {
-    metaParts.push(`teardown: ${parameters.auto_teardown ? 'auto' : 'manual'}`);
-  }
-  const chipsHtml = chips.length ? `<div class="d-flex flex-wrap gap-2 param-chip-group">${chips.join('')}</div>` : '';
-  const metaHtml = metaParts.length ? `<div class="text-muted small">${escapeHtml(metaParts.join(' • '))}</div>` : '';
-  if (!chipsHtml && !metaHtml) {
+  const entries = Object.entries(parameters).filter(([, value]) => {
+    if (value === undefined || value === null) return false;
+    if (typeof value === 'string' && value.trim() === '') return false;
+    return true;
+  });
+  if (!entries.length) {
     return '<span class="text-muted">-</span>';
   }
-  return `<div class="d-flex flex-column gap-1">${chipsHtml}${metaHtml}</div>`;
+  const items = entries.map(([key, value]) => {
+    let displayValue;
+    if (typeof value === 'boolean') {
+      displayValue = value ? 'true' : 'false';
+    } else if (typeof value === 'number') {
+      displayValue = Number.isFinite(value) ? value.toString() : '';
+    } else if (typeof value === 'string') {
+      const trimmed = value.trim();
+      displayValue = trimmed || value;
+    } else if (Array.isArray(value)) {
+      displayValue = value.map((item) => String(item)).join(', ');
+    } else if (typeof value === 'object') {
+      displayValue = JSON.stringify(value);
+    } else {
+      displayValue = String(value);
+    }
+    if (!displayValue && displayValue !== '0') {
+      return '';
+    }
+    return `<li><span class="param-key">${escapeHtml(key)}</span><span class="param-value">${escapeHtml(displayValue)}</span></li>`;
+  }).filter(Boolean);
+  if (!items.length) {
+    return '<span class="text-muted">-</span>';
+  }
+  return `<ul class="param-list">${items.join('')}</ul>`;
 }
 
 function formatDate(value) {
@@ -113,7 +110,7 @@ function updatePagination(totalItems, pageSize) {
   const endIndex = Math.min(totalItems, currentPage * pageSize);
   if (pageSummary) {
     pageSummary.textContent = totalItems
-      ? `Showing ${startIndex} – ${endIndex} of ${totalItems} runs`
+      ? `Showing ${startIndex} – ${endIndex} of ${totalItems} items`
       : 'No runs to display';
   }
   if (prevPageBtn) prevPageBtn.disabled = currentPage <= 1;
@@ -134,10 +131,6 @@ function sortRuns(runs) {
       case 'status':
         valueA = a.status || '';
         valueB = b.status || '';
-        break;
-      case 'fileName':
-        valueA = (a.fileName || '').toLowerCase();
-        valueB = (b.fileName || '').toLowerCase();
         break;
       case 'parameters':
         valueA = JSON.stringify(a.parameters || {}).toLowerCase();
@@ -164,7 +157,6 @@ function applyFilters({ resetPage = false } = {}) {
     if (!term) return true;
     const haystack = [
       run.id,
-      run.fileName,
       run.parameters?.target_env,
       run.parameters?.target_type,
       JSON.stringify(run.parameters || {}),
@@ -201,7 +193,7 @@ function renderRows(runs) {
   tableBody.innerHTML = '';
   if (!runs.length) {
     const row = document.createElement('tr');
-    row.innerHTML = '<td colspan="8" class="text-center text-muted py-4">No runs yet.</td>';
+    row.innerHTML = '<td colspan="7" class="text-center text-muted py-4">No runs yet.</td>';
     tableBody.appendChild(row);
     return;
   }
@@ -215,7 +207,6 @@ function renderRows(runs) {
     row.innerHTML = `
       <td>${escapeHtml(formatDate(run.createdAt))}</td>
       <td>${escapeHtml(run.id)}</td>
-      <td>${escapeHtml(run.fileName || '-')}</td>
       <td>${parameterSummary}</td>
       <td>${escapeHtml(targetEnv)}</td>
       <td>${statusBadge(run.status)}</td>
