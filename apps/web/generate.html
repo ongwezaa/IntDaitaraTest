@@ -119,89 +119,95 @@
           <h2 class="h5 mb-0">Trigger Logic App</h2>
         </div>
         <div class="card-body trigger-card-body">
-          <div class="parameter-row row g-3 align-items-center">
-            <label class="col-12 col-lg-4 col-xl-3 col-form-label" for="fileSelect">Source file</label>
-            <div class="col-12 col-lg-8 col-xl-9">
-              <select class="form-select" id="fileSelect"></select>
+          <div class="row g-4 align-items-start trigger-grid">
+            <div class="col-12 col-xl-6">
+              <div class="parameter-stack">
+                <div class="parameter-row row g-3 align-items-center">
+                  <label class="col-12 col-lg-5 col-form-label text-lg-end" for="fileSelect">Source file</label>
+                  <div class="col-12 col-lg-7">
+                    <select class="form-select" id="fileSelect"></select>
+                  </div>
+                </div>
+                <div class="parameter-row row g-3 align-items-center">
+                  <label class="col-12 col-lg-5 col-form-label text-lg-end" for="configSelect">Config file</label>
+                  <div class="col-12 col-lg-7">
+                    <select class="form-select" id="configSelect"></select>
+                  </div>
+                </div>
+                <div class="parameter-row row g-3 align-items-center">
+                  <label class="col-12 col-lg-5 col-form-label text-lg-end" for="sourcePromptSelect">Source mapping prompt</label>
+                  <div class="col-12 col-lg-7">
+                    <select class="form-select" id="sourcePromptSelect"></select>
+                  </div>
+                </div>
+                <div class="parameter-row row g-3 align-items-center">
+                  <label class="col-12 col-lg-5 col-form-label text-lg-end" for="selectPromptSelect">Select mapping prompt</label>
+                  <div class="col-12 col-lg-7">
+                    <select class="form-select" id="selectPromptSelect"></select>
+                  </div>
+                </div>
+                <div class="parameter-row row g-3 align-items-center">
+                  <label class="col-12 col-lg-5 col-form-label text-lg-end" for="targetType">Target type</label>
+                  <div class="col-12 col-lg-7">
+                    <select class="form-select" id="targetType">
+                      <option value="Postgres">Postgres</option>
+                      <option value="PostgreSQL">PostgreSQL</option>
+                      <option value="Databricks">Databricks</option>
+                      <option value="SQL Server">SQL Server</option>
+                      <option value="BigQuery">BigQuery</option>
+                      <option value="Redshift">Redshift</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="parameter-row row g-3 align-items-center">
+                  <label class="col-12 col-lg-5 col-form-label text-lg-end" for="targetEnv">Target environment</label>
+                  <div class="col-12 col-lg-7">
+                    <select class="form-select" id="targetEnv">
+                      <option value="DEV">DEV</option>
+                      <option value="UAT">UAT</option>
+                      <option value="PROD">PROD</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="parameter-row row g-3 align-items-center">
+                  <label class="col-12 col-lg-5 col-form-label text-lg-end" for="mockRowCount">Mock row count</label>
+                  <div class="col-12 col-lg-7">
+                    <input type="number" class="form-control" id="mockRowCount" min="1" value="200" />
+                  </div>
+                </div>
+                <div class="parameter-row row g-3 align-items-center">
+                  <label class="col-12 col-lg-5 col-form-label text-lg-end" for="autoTeardown">Auto teardown</label>
+                  <div class="col-12 col-lg-7">
+                    <select class="form-select" id="autoTeardown">
+                      <option value="false">false</option>
+                      <option value="true">true</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="parameter-row row g-3 align-items-center">
+                  <label class="col-12 col-lg-5 col-form-label text-lg-end" for="generateDdl">Generate DDL</label>
+                  <div class="col-12 col-lg-7">
+                    <select class="form-select" id="generateDdl">
+                      <option value="true">true</option>
+                      <option value="false">false</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="parameter-row row g-3 align-items-center">
-            <label class="col-12 col-lg-4 col-xl-3 col-form-label" for="configSelect">Config file</label>
-            <div class="col-12 col-lg-8 col-xl-9">
-              <select class="form-select" id="configSelect"></select>
+            <div class="col-12 col-xl-6">
+              <div class="parameter-preview h-100 d-flex flex-column">
+                <label class="form-label fw-semibold" for="parametersPreview">Trigger parameters</label>
+                <textarea class="form-control code-textarea flex-grow-1" id="parametersPreview" rows="12"></textarea>
+                <div class="d-flex flex-wrap gap-3 mt-4 mt-xl-3">
+                  <button class="btn btn-gradient" id="triggerBtn" type="button">
+                    <span class="spinner-border spinner-border-sm d-none" id="triggerSpinner"></span>
+                    Trigger Logic App
+                  </button>
+                  <button class="btn btn-outline-secondary" id="resetParamsBtn" type="button">Reset to defaults</button>
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="parameter-row row g-3 align-items-center">
-            <label class="col-12 col-lg-4 col-xl-3 col-form-label" for="sourcePromptSelect">Source mapping prompt</label>
-            <div class="col-12 col-lg-8 col-xl-9">
-              <select class="form-select" id="sourcePromptSelect"></select>
-            </div>
-          </div>
-          <div class="parameter-row row g-3 align-items-center">
-            <label class="col-12 col-lg-4 col-xl-3 col-form-label" for="selectPromptSelect">Select mapping prompt</label>
-            <div class="col-12 col-lg-8 col-xl-9">
-              <select class="form-select" id="selectPromptSelect"></select>
-            </div>
-          </div>
-          <div class="parameter-row row g-3 align-items-center">
-            <label class="col-12 col-lg-4 col-xl-3 col-form-label" for="targetType">Target type</label>
-            <div class="col-12 col-lg-8 col-xl-9">
-              <select class="form-select" id="targetType">
-                <option value="Postgres">Postgres</option>
-                <option value="PostgreSQL">PostgreSQL</option>
-                <option value="Databricks">Databricks</option>
-                <option value="SQL Server">SQL Server</option>
-                <option value="BigQuery">BigQuery</option>
-                <option value="Redshift">Redshift</option>
-              </select>
-            </div>
-          </div>
-          <div class="parameter-row row g-3 align-items-center">
-            <label class="col-12 col-lg-4 col-xl-3 col-form-label" for="targetEnv">Target environment</label>
-            <div class="col-12 col-lg-8 col-xl-9">
-              <select class="form-select" id="targetEnv">
-                <option value="DEV">DEV</option>
-                <option value="UAT">UAT</option>
-                <option value="PROD">PROD</option>
-              </select>
-            </div>
-          </div>
-          <div class="parameter-row row g-3 align-items-center">
-            <label class="col-12 col-lg-4 col-xl-3 col-form-label" for="mockRowCount">Mock row count</label>
-            <div class="col-12 col-lg-8 col-xl-9">
-              <input type="number" class="form-control" id="mockRowCount" min="1" value="200" />
-            </div>
-          </div>
-          <div class="parameter-row row g-3 align-items-center">
-            <label class="col-12 col-lg-4 col-xl-3 col-form-label" for="autoTeardown">Auto teardown</label>
-            <div class="col-12 col-lg-8 col-xl-9">
-              <select class="form-select" id="autoTeardown">
-                <option value="false">false</option>
-                <option value="true">true</option>
-              </select>
-            </div>
-          </div>
-          <div class="parameter-row row g-3 align-items-center">
-            <label class="col-12 col-lg-4 col-xl-3 col-form-label" for="generateDdl">Generate DDL</label>
-            <div class="col-12 col-lg-8 col-xl-9">
-              <select class="form-select" id="generateDdl">
-                <option value="true">true</option>
-                <option value="false">false</option>
-              </select>
-            </div>
-          </div>
-          <div class="parameter-row row g-3 align-items-start">
-            <label class="col-12 col-lg-4 col-xl-3 col-form-label" for="parametersPreview">Trigger parameters (JSON)</label>
-            <div class="col-12 col-lg-8 col-xl-9">
-              <textarea class="form-control code-textarea" id="parametersPreview" rows="12"></textarea>
-            </div>
-          </div>
-          <div class="d-flex flex-wrap gap-3 mt-4">
-            <button class="btn btn-gradient" id="triggerBtn" type="button">
-              <span class="spinner-border spinner-border-sm d-none" id="triggerSpinner"></span>
-              Trigger Logic App
-            </button>
-            <button class="btn btn-outline-secondary" id="resetParamsBtn" type="button">Reset to defaults</button>
           </div>
         </div>
       </section>

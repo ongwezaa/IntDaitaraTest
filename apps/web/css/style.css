@@ -169,17 +169,34 @@ main {
   margin-bottom: 1rem;
 }
 
-.parameter-row:last-of-type {
+.parameter-stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.parameter-stack .parameter-row:last-of-type {
   margin-bottom: 0;
 }
 
 .trigger-card-body {
-  max-width: 680px;
-  margin: 0 auto;
+  padding-top: 1.5rem;
+}
+
+.trigger-grid {
+  --bs-gutter-x: 2rem;
+}
+
+.parameter-preview label {
+  color: #1f2937;
+}
+
+.parameter-preview textarea {
+  min-height: 300px;
 }
 
 .files-header {
   gap: 1.25rem !important;
+  flex-wrap: wrap;
 }
 
 .files-actions {
@@ -187,9 +204,18 @@ main {
 }
 
 @media (min-width: 992px) {
+  .files-header {
+    flex-wrap: nowrap;
+  }
   .files-actions {
+    width: auto;
     justify-content: flex-end;
   }
+}
+
+.files-header .breadcrumb-container {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .files-actions .upload-control {
@@ -204,13 +230,13 @@ main {
   white-space: nowrap;
 }
 
-.parameter-row textarea {
-  min-height: 260px;
-}
-
 .parameter-row .col-form-label {
   font-weight: 600;
   color: #1f2937;
+}
+
+.manage-btn::after {
+  display: none !important;
 }
 
 .table td,
