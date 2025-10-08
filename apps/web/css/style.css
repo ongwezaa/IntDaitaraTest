@@ -68,19 +68,19 @@ main {
 }
 
 .search-input .input-group-text {
-  background-color: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(79, 70, 229, 0.35);
+  background-color: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.55);
   border-right: 0;
-  color: #4338ca;
+  color: #1f2937;
   border-top-left-radius: 999px;
   border-bottom-left-radius: 999px;
 }
 
 .search-input .form-control {
-  border: 1px solid rgba(79, 70, 229, 0.35);
+  border: 1px solid rgba(148, 163, 184, 0.55);
   border-left: 0;
   padding-left: 0.5rem;
-  background-color: rgba(255, 255, 255, 0.92);
+  background-color: rgba(255, 255, 255, 0.96);
   border-top-right-radius: 999px;
   border-bottom-right-radius: 999px;
 }
@@ -159,12 +159,46 @@ main {
   margin-bottom: 0;
 }
 
+.file-browser thead tr {
+  border-bottom: 2px solid rgba(59, 130, 246, 0.25);
+}
+
 .file-browser thead th {
-  background-color: rgba(59, 130, 246, 0.08);
+  background-color: #ffffff;
   color: #1f2937;
   font-weight: 600;
-  border-bottom: 1px solid rgba(59, 130, 246, 0.18);
   border-top: none;
+  border-bottom: none;
+  padding-top: 0.85rem;
+  padding-bottom: 0.75rem;
+  letter-spacing: 0.01em;
+  font-size: 0.95rem;
+}
+
+.file-browser thead th .header-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.file-browser thead th .header-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 999px;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  color: #2563eb;
+  background-color: rgba(219, 234, 254, 0.6);
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.file-browser thead th .header-info:hover,
+.file-browser thead th .header-info:focus {
+  background-color: rgba(59, 130, 246, 0.22);
+  border-color: rgba(59, 130, 246, 0.5);
 }
 
 .file-browser tbody tr.folder-row {
@@ -175,58 +209,109 @@ main {
   background-color: rgba(37, 99, 235, 0.08);
 }
 
+.file-browser tbody td {
+  font-weight: 400;
+  color: #1f2937;
+}
+
+.file-browser .item-name {
+  font-weight: 400;
+  color: #111827;
+}
+
 
 .file-browser .item-icon {
-  width: 1rem;
-  height: 1rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.55rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  position: relative;
+  overflow: hidden;
+  background: transparent;
+  color: #1f2937;
 }
 
 .file-browser .item-icon i {
   line-height: 1;
 }
 
+
 .file-browser .item-icon.folder {
   color: #facc15;
 }
 
-.file-browser .item-icon.file {
-  color: #60a5fa;
+.file-browser .item-icon.folder i {
+  font-size: 1.2rem;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.08));
 }
 
 .file-browser .item-icon.up {
+  background: transparent;
   color: #94a3b8;
+  font-weight: 500;
+}
+
+.file-browser .item-icon.up i {
+  font-size: 1.15rem;
+}
+
+.file-browser .item-icon .icon-label {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+  font-family: 'Segoe UI', 'Inter', sans-serif;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.file-browser .item-icon.file.txt .icon-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+}
+
+.file-browser .item-icon.file.json .icon-label {
+  font-size: 0.72rem;
+}
+
+.file-browser .item-icon.file.excel .icon-label {
+  font-size: 0.9rem;
 }
 
 .file-browser .item-icon.file.excel {
-  color: #22c55e;
-}
-
-.file-browser .item-icon.file.csv {
-  color: #0ea5e9;
-}
-
-.file-browser .item-icon.file.json {
-  color: #6366f1;
+  background: linear-gradient(135deg, #16a34a, #047857);
 }
 
 .file-browser .item-icon.file.txt {
-  color: #f97316;
+  background: linear-gradient(135deg, #2563eb, #1e40af);
 }
 
-.file-browser .item-icon.file.pdf {
-  color: #ef4444;
+.file-browser .item-icon.file.json {
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
 }
 
-.file-browser .item-icon.file.sql {
-  color: #14b8a6;
+.file-browser .item-icon.file.default {
+  background: linear-gradient(135deg, #94a3b8, #475569);
+  color: #f8fafc;
 }
 
-.file-browser .item-icon.file.xml {
-  color: #a855f7;
+.file-browser .item-icon.file.iconic {
+  color: #2563eb;
+}
+
+.file-browser .item-icon.file.default i {
+  font-size: 1.05rem;
+}
+
+.file-browser .item-icon.file.iconic i {
+  font-size: 1.1rem;
 }
 
 .file-browser tbody tr.parent-row {
@@ -271,26 +356,33 @@ main {
 }
 
 .btn-copy {
-  border: 1px solid rgba(59, 130, 246, 0.85);
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 0.95));
-  color: #f8fafc;
-  font-weight: 600;
-  border-radius: 999px;
-  padding: 0.25rem 0.9rem;
-  transition: all 0.2s ease;
+  border: 1px solid rgba(148, 163, 184, 0.55);
+  background: rgba(30, 41, 59, 0.45);
+  color: #e2e8f0;
+  font-weight: 500;
+  border-radius: 0.6rem;
+  padding: 0.35rem 0.75rem;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .btn-copy:disabled {
-  opacity: 0.6;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
 .btn-copy:not(:disabled):hover,
 .btn-copy:not(:disabled):focus {
-  background: linear-gradient(135deg, rgba(29, 78, 216, 0.95), rgba(59, 130, 246, 0.95));
-  border-color: rgba(29, 78, 216, 0.85);
+  background: rgba(51, 65, 85, 0.75);
+  border-color: rgba(148, 163, 184, 0.85);
   color: #f8fafc;
   box-shadow: none;
+}
+
+.btn-copy i {
+  font-size: 0.85rem;
 }
 
 .preview-wrapper {
@@ -347,23 +439,26 @@ main {
 }
 
 .sortable::after {
-  content: '\25B4\25BE';
-  font-size: 0.6rem;
+  content: '\25BC';
+  font-size: 0.65rem;
   position: absolute;
-  right: 0.35rem;
+  right: 0.45rem;
   top: 50%;
   transform: translateY(-50%);
-  color: rgba(100, 116, 139, 0.6);
+  color: rgba(100, 116, 139, 0.65);
+  opacity: 0.55;
 }
 
 .sortable[data-direction='asc']::after {
-  content: '\25B4';
-  color: #1d4ed8;
+  content: '\25B2';
+  color: #2563eb;
+  opacity: 1;
 }
 
 .sortable[data-direction='desc']::after {
-  content: '\25BE';
-  color: #1d4ed8;
+  content: '\25BC';
+  color: #2563eb;
+  opacity: 1;
 }
 
 

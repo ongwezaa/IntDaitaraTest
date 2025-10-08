@@ -72,10 +72,15 @@
             <table class="table table-hover align-middle mb-0" id="fileTable">
               <thead>
                 <tr>
-                  <th scope="col" data-sort="displayName" class="sortable">Name</th>
-                  <th scope="col" data-sort="kind" class="sortable">Type</th>
-                  <th scope="col" data-sort="size" class="sortable text-end">Size</th>
-                  <th scope="col" data-sort="lastModified" class="sortable">Last modified</th>
+                  <th scope="col" data-sort="displayName" class="sortable"><span class="header-label">Name</span></th>
+                  <th scope="col" data-sort="kind" class="sortable"><span class="header-label">Type</span></th>
+                  <th scope="col" data-sort="size" class="sortable text-end"><span class="header-label">Size</span></th>
+                  <th scope="col" data-sort="lastModified" class="sortable">
+                    <span class="header-label">
+                      Last modified
+                      <span class="header-info" title="Timestamp from Azure Blob metadata" aria-hidden="true">i</span>
+                    </span>
+                  </th>
                   <th scope="col" class="text-end">Actions</th>
                 </tr>
               </thead>
@@ -106,7 +111,10 @@
         </div>
         <div class="card-body">
           <div class="preview-wrapper">
-            <button class="btn btn-copy btn-sm" id="copyPreviewBtn" type="button" disabled>Copy</button>
+            <button class="btn btn-copy btn-sm" id="copyPreviewBtn" type="button" disabled>
+              <i class="bi bi-clipboard" aria-hidden="true"></i>
+              <span class="btn-copy-label">Copy</span>
+            </button>
             <div id="previewPane" class="preview-pane">Select a file to preview</div>
           </div>
         </div>

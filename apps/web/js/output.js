@@ -9,6 +9,7 @@ const pageSummary = document.getElementById('pageSummary');
 const sortableHeaders = document.querySelectorAll('#fileTable th.sortable');
 const previewPane = document.getElementById('previewPane');
 const copyPreviewBtn = document.getElementById('copyPreviewBtn');
+const copyPreviewLabel = copyPreviewBtn ? copyPreviewBtn.querySelector('.btn-copy-label') : null;
 const alertContainer = document.getElementById('alertContainer');
 const breadcrumb = document.getElementById('breadcrumb');
 
@@ -21,7 +22,19 @@ let sortKey = 'displayName';
 let sortDirection = 'asc';
 let searchDebounce;
 let lastPreviewText = '';
-const copyButtonDefaultLabel = copyPreviewBtn ? copyPreviewBtn.textContent.trim() : 'Copy';
+const copyButtonDefaultLabel = copyPreviewLabel ? copyPreviewLabel.textContent.trim() : 'Copy';
+
+function setCopyButtonLabel(text) {
+  if (!copyPreviewBtn) return;
+  const labelEl = copyPreviewBtn.querySelector('.btn-copy-label');
+  if (labelEl) {
+    labelEl.textContent = text;
+  } else {
+    copyPreviewBtn.textContent = text;
+  }
+  copyPreviewBtn.setAttribute('aria-label', text);
+  copyPreviewBtn.setAttribute('title', text);
+}
 
 function showAlert(message, type = 'danger') {
   const wrapper = document.createElement('div');
@@ -96,11 +109,14 @@ const EXTENSION_ICON_MAP = {
   pdf: 'pdf',
 };
 
+const BADGE_ICON_MAP = {
+  excel: { label: 'X', wrapperClass: 'excel' },
+  txt: { label: 'TXT', wrapperClass: 'txt' },
+  json: { label: '{}', wrapperClass: 'json' },
+};
+
 const ICON_CLASS_BY_VARIANT = {
   csv: 'bi bi-filetype-csv',
-  json: 'bi bi-filetype-json',
-  txt: 'bi bi-filetype-txt',
-  excel: 'bi bi-file-earmark-spreadsheet',
   sql: 'bi bi-filetype-sql',
   xml: 'bi bi-filetype-xml',
   pdf: 'bi bi-filetype-pdf',
@@ -111,8 +127,16 @@ function getFileIconInfo(name = '') {
   const match = name.toLowerCase().match(/\.([a-z0-9]+)$/);
   const extension = match ? match[1] : '';
   const variant = EXTENSION_ICON_MAP[extension] || 'default';
+  if (BADGE_ICON_MAP[variant]) {
+    return {
+      type: 'badge',
+      wrapperClass: BADGE_ICON_MAP[variant].wrapperClass,
+      label: BADGE_ICON_MAP[variant].label,
+    };
+  }
   const iconClass = ICON_CLASS_BY_VARIANT[variant] || ICON_CLASS_BY_VARIANT.default;
-  return { iconClass, variant };
+  const wrapperClass = variant === 'default' ? 'default' : 'iconic';
+  return { type: 'icon', wrapperClass, iconClass };
 }
 
 function renderBreadcrumb() {
@@ -166,7 +190,7 @@ function resetPreview(message = 'Select a file to preview') {
   lastPreviewText = '';
   if (copyPreviewBtn) {
     copyPreviewBtn.disabled = true;
-    copyPreviewBtn.textContent = copyButtonDefaultLabel;
+    setCopyButtonLabel(copyButtonDefaultLabel);
   }
 }
 
@@ -208,7 +232,7 @@ function renderList(items) {
       row.innerHTML = `
         <td>
           <div class="d-flex align-items-center gap-2">
-            <span class="item-icon folder" aria-hidden="true"><i class="bi bi-folder2-open"></i></span>
+            <span class="item-icon folder" aria-hidden="true"><i class="bi bi-folder-fill"></i></span>
             <span class="item-name">${item.displayName}</span>
           </div>
         </td>
@@ -220,12 +244,22 @@ function renderList(items) {
     } else {
       const timestamp = item.lastModified ? new Date(item.lastModified).toLocaleString() : '';
       row.dataset.path = item.name;
-      const { iconClass, variant } = getFileIconInfo(item.name);
-      const variantClass = variant && variant !== 'default' ? ` ${variant}` : '';
+      const iconInfo = getFileIconInfo(item.name);
+      const iconClasses = ['item-icon', 'file'];
+      if (iconInfo.wrapperClass) {
+        iconClasses.push(iconInfo.wrapperClass);
+      }
+      let iconMarkup;
+      if (iconInfo.type === 'badge') {
+        iconMarkup = `<span class="${iconClasses.join(' ')}" aria-hidden="true"><span class="icon-label">${iconInfo.label}</span></span>`;
+      } else {
+        iconMarkup = `<span class="${iconClasses.join(' ')}" aria-hidden="true"><i class="${iconInfo.iconClass}"></i></span>`;
+      }
+      iconMarkup = iconMarkup.trim();
       row.innerHTML = `
         <td>
           <div class="d-flex align-items-center gap-2">
-            <span class="item-icon file${variantClass}" aria-hidden="true"><i class="${iconClass}"></i></span>
+            ${iconMarkup}
             <span class="item-name">${item.displayName}</span>
           </div>
         </td>
@@ -401,7 +435,7 @@ async function previewBlob(name) {
   lastPreviewText = '';
   if (copyPreviewBtn) {
     copyPreviewBtn.disabled = true;
-    copyPreviewBtn.textContent = copyButtonDefaultLabel;
+    setCopyButtonLabel(copyButtonDefaultLabel);
   }
   try {
     const response = await fetch(`${API_BASE}/output/preview?blob=${encodeURIComponent(name)}`);
@@ -420,14 +454,14 @@ async function previewBlob(name) {
     lastPreviewText = typeof copyValue === 'string' ? copyValue : text;
     if (copyPreviewBtn) {
       copyPreviewBtn.disabled = !lastPreviewText;
-      copyPreviewBtn.textContent = copyButtonDefaultLabel;
+      setCopyButtonLabel(copyButtonDefaultLabel);
     }
   } catch (error) {
     previewPane.textContent = 'Preview failed.';
     lastPreviewText = '';
     if (copyPreviewBtn) {
       copyPreviewBtn.disabled = true;
-      copyPreviewBtn.textContent = copyButtonDefaultLabel;
+      setCopyButtonLabel(copyButtonDefaultLabel);
     }
     showAlert(error.message || 'Preview failed');
   }
@@ -532,9 +566,9 @@ if (copyPreviewBtn) {
     }
     try {
       await navigator.clipboard.writeText(lastPreviewText);
-      copyPreviewBtn.textContent = 'Copied!';
+      setCopyButtonLabel('Copied!');
       setTimeout(() => {
-        copyPreviewBtn.textContent = copyButtonDefaultLabel;
+        setCopyButtonLabel(copyButtonDefaultLabel);
       }, 1500);
     } catch (error) {
       showAlert('Failed to copy preview to the clipboard.', 'danger');
