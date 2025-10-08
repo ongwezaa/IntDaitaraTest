@@ -70,10 +70,6 @@
           <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
             <div>
               <h2 class="h5 mb-1">Files &amp; folders</h2>
-              <div class="d-flex align-items-center gap-2 text-muted small">
-                <i class="bi bi-hdd-stack"></i>
-                <span id="currentPathLabel">root/input</span>
-              </div>
             </div>
             <div class="d-flex flex-wrap align-items-center gap-2">
               <button class="btn btn-soft" id="createFolderBtn" type="button">
@@ -84,7 +80,7 @@
                 <input class="form-control form-control-sm" type="file" id="uploadInput" />
                 <button class="btn btn-gradient btn-sm" id="uploadBtn" type="button">
                   <span class="spinner-border spinner-border-sm d-none" id="uploadSpinner"></span>
-                  Upload to folder
+                  Upload
                 </button>
               </div>
             </div>
@@ -188,7 +184,7 @@
           </div>
           <div class="mt-4">
             <label class="form-label" for="parametersPreview">Trigger parameters (JSON)</label>
-            <textarea class="form-control code-textarea" id="parametersPreview" rows="10"></textarea>
+            <textarea class="form-control code-textarea" id="parametersPreview" rows="14"></textarea>
           </div>
           <div class="d-flex flex-wrap gap-3 mt-4">
             <button class="btn btn-gradient" id="triggerBtn" type="button">

@@ -8,7 +8,6 @@ const nextPageBtn = document.getElementById('nextPageBtn');
 const pageSummary = document.getElementById('pageSummary');
 const sortableHeaders = document.querySelectorAll('#fileTable th.sortable');
 const breadcrumb = document.getElementById('breadcrumb');
-const currentPathLabel = document.getElementById('currentPathLabel');
 const uploadInput = document.getElementById('uploadInput');
 const uploadBtn = document.getElementById('uploadBtn');
 const uploadSpinner = document.getElementById('uploadSpinner');
@@ -146,11 +145,6 @@ function setCopyButtonLabel(text) {
   }
   copyPreviewBtn.setAttribute('aria-label', text);
   copyPreviewBtn.setAttribute('title', text);
-}
-
-function updateCurrentPathLabel() {
-  if (!currentPathLabel) return;
-  currentPathLabel.textContent = formatFriendlyPath(currentPrefix);
 }
 
 function formatSize(bytes) {
@@ -324,8 +318,16 @@ function renderList(items) {
         <td class="text-end">
           <div class="d-inline-flex gap-2 justify-content-end">
             <div class="btn-group" role="group">
-              <button class="btn btn-soft btn-sm dropdown-toggle manage-btn" data-bs-toggle="dropdown" type="button">
-                Manage
+              <button
+                class="btn btn-soft btn-sm dropdown-toggle manage-btn"
+                data-bs-toggle="dropdown"
+                data-bs-display="static"
+                type="button"
+                aria-label="Manage"
+                title="Manage"
+              >
+                <span aria-hidden="true" class="manage-ellipsis">⋯</span>
+                <span class="visually-hidden">Manage</span>
               </button>
               <ul class="dropdown-menu dropdown-menu-end">
                 <li><button class="dropdown-item rename-action" data-name="${escapeAttr(item.name)}" data-kind="folder" data-display="${escapeAttr(item.displayName)}" type="button">Rename</button></li>
@@ -360,8 +362,16 @@ function renderList(items) {
               Download
             </a>
             <div class="btn-group" role="group">
-              <button class="btn btn-soft btn-sm dropdown-toggle manage-btn" data-bs-toggle="dropdown" type="button">
-                Manage
+              <button
+                class="btn btn-soft btn-sm dropdown-toggle manage-btn"
+                data-bs-toggle="dropdown"
+                data-bs-display="static"
+                type="button"
+                aria-label="Manage"
+                title="Manage"
+              >
+                <span aria-hidden="true" class="manage-ellipsis">⋯</span>
+                <span class="visually-hidden">Manage</span>
               </button>
               <ul class="dropdown-menu dropdown-menu-end">
                 <li><button class="dropdown-item rename-action" data-name="${escapeAttr(item.name)}" data-kind="file" data-display="${escapeAttr(item.displayName)}" type="button">Rename</button></li>
@@ -528,7 +538,6 @@ async function loadList() {
     })) : [];
     applyFilters({ resetPage: true });
     updateSortIndicators();
-    updateCurrentPathLabel();
   } catch (error) {
     showAlert(error.message || 'Failed to list files');
   }
@@ -577,7 +586,6 @@ function setCurrentPrefix(prefix) {
   const resolved = prefix ? normalisePrefix(prefix) : INPUT_ROOT;
   currentPrefix = resolved || INPUT_ROOT;
   renderBreadcrumb();
-  updateCurrentPathLabel();
 }
 
 function populateSelect(selectEl, files, placeholder) {
@@ -1075,7 +1083,6 @@ async function deleteItem() {
     }
     setCurrentPrefix(INPUT_ROOT);
     renderBreadcrumb();
-    updateCurrentPathLabel();
     await Promise.all([loadList(), loadFlatFiles()]);
   } catch (error) {
     showAlert('Backend unavailable. Please confirm the API is running.');
