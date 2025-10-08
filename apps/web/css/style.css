@@ -59,14 +59,17 @@ main {
 
 .preview-pane {
   white-space: pre-wrap;
-  background: #fff;
-  border: 1px solid #dee2e6;
-  border-radius: 0.5rem;
-  padding: 1rem;
-  min-height: 200px;
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  min-height: 220px;
   max-height: 55vh;
   overflow-y: auto;
   overflow-x: hidden;
+  font-family: 'Fira Code', 'Source Code Pro', Consolas, Monaco, 'Courier New', monospace;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.35);
 }
 
 .preview-pane pre,
@@ -75,6 +78,8 @@ main {
   word-break: break-word;
   overflow-wrap: anywhere;
   margin-bottom: 0;
+  background: transparent;
+  color: inherit;
 }
 
 .preview-pane table {
@@ -102,15 +107,15 @@ main {
 
 
 .file-browser .item-icon {
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 0.5rem;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 0.35rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.95rem;
-  background: rgba(15, 23, 42, 0.08);
-  color: #1f2937;
+  font-size: 0.85rem;
+  background: rgba(148, 163, 184, 0.18);
+  color: #0f172a;
 }
 
 .file-browser .item-icon i {
@@ -118,18 +123,18 @@ main {
 }
 
 .file-browser .item-icon.folder {
-  background: rgba(250, 204, 21, 0.18);
-  color: #92400e;
+  background: rgba(56, 189, 248, 0.22);
+  color: #075985;
 }
 
 .file-browser .item-icon.file {
-  background: rgba(148, 163, 184, 0.2);
-  color: #0f172a;
+  background: rgba(165, 180, 252, 0.25);
+  color: #312e81;
 }
 
 .file-browser .item-icon.up {
-  background: rgba(59, 130, 246, 0.15);
-  color: #1d4ed8;
+  background: rgba(248, 250, 252, 0.65);
+  color: #0f172a;
 }
 
 .file-browser tbody tr.parent-row {
@@ -144,26 +149,37 @@ main {
   align-items: center;
 }
 
-.btn-icon {
-  border: none;
-  background: transparent;
-  padding: 0.25rem;
-  border-radius: 0.5rem;
-  color: #1f2937;
-  line-height: 1;
+.btn-soft {
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(248, 250, 252, 0.35);
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  color: #0f172a;
+  font-weight: 500;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.2s ease;
 }
 
-.btn-icon:hover,
-.btn-icon:focus {
-  background-color: rgba(37, 99, 235, 0.12);
+.btn-soft.btn-sm {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+.btn-soft:hover,
+.btn-soft:focus {
+  background: rgba(37, 99, 235, 0.12);
   color: #1d4ed8;
+  border-color: rgba(59, 130, 246, 0.45);
   text-decoration: none;
   outline: none;
   box-shadow: none;
 }
 
-.btn-icon i {
-  font-size: 1rem;
+.btn-soft i {
+  font-size: 0.95rem;
 }
 
 .breadcrumb-container {

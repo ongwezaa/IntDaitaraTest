@@ -122,11 +122,8 @@ function renderList(items) {
     row.innerHTML = `
       <td>
         <div class="d-flex align-items-center gap-2">
-          <span class="item-icon up" aria-hidden="true"><i class="bi bi-arrow-90deg-up"></i></span>
-          <div>
-            <div class="fw-semibold text-body-secondary small">Parent folder</div>
-            <div class="text-muted small">Back one level</div>
-          </div>
+          <span class="item-icon up" aria-hidden="true"><i class="bi bi-arrow-left-short"></i></span>
+          <span class="fw-semibold text-body-secondary">Back</span>
         </div>
       </td>
       <td class="text-muted small">Folder</td>
@@ -153,7 +150,7 @@ function renderList(items) {
       row.innerHTML = `
         <td>
           <div class="d-flex align-items-center gap-2">
-            <span class="item-icon folder" aria-hidden="true"><i class="bi bi-folder"></i></span>
+            <span class="item-icon folder" aria-hidden="true"><i class="bi bi-folder2"></i></span>
             <span class="fw-semibold">${item.displayName}</span>
           </div>
         </td>
@@ -168,7 +165,7 @@ function renderList(items) {
       row.innerHTML = `
         <td>
           <div class="d-flex align-items-center gap-2">
-            <span class="item-icon file" aria-hidden="true"><i class="bi bi-file-earmark"></i></span>
+            <span class="item-icon file" aria-hidden="true"><i class="bi bi-file-earmark-text"></i></span>
             <span class="fw-semibold">${item.displayName}</span>
           </div>
         </td>
@@ -176,14 +173,14 @@ function renderList(items) {
         <td class="text-end">${formatSize(item.size ?? 0)}</td>
         <td>${timestamp}</td>
         <td class="text-end">
-          <div class="icon-actions d-inline-flex gap-2">
-            <button class="btn btn-icon preview-btn" data-name="${item.name}" type="button" title="Preview ${item.displayName}" aria-label="Preview ${item.displayName}">
+          <div class="d-inline-flex flex-wrap gap-2 justify-content-end">
+            <button class="btn btn-soft btn-sm preview-btn" data-name="${item.name}" type="button">
               <i class="bi bi-eye"></i>
-              <span class="visually-hidden">Preview</span>
+              <span>Preview</span>
             </button>
-            <a class="btn btn-icon" data-download="true" href="${API_BASE}/output/download?blob=${encodeURIComponent(item.name)}" title="Download ${item.displayName}" aria-label="Download ${item.displayName}" download>
+            <a class="btn btn-soft btn-sm" data-download="true" href="${API_BASE}/output/download?blob=${encodeURIComponent(item.name)}" download>
               <i class="bi bi-download"></i>
-              <span class="visually-hidden">Download</span>
+              <span>Download</span>
             </a>
           </div>
         </td>
