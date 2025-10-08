@@ -24,6 +24,7 @@ let sortKey = 'displayName';
 let sortDirection = 'asc';
 let searchDebounce;
 let lastPreviewText = '';
+let listRequestToken = 0;
 const copyButtonDefaultLabel = copyPreviewLabel ? copyPreviewLabel.textContent.trim() : 'Copy';
 
 function setCopyButtonLabel(text) {
@@ -96,7 +97,8 @@ function getParentPrefix(prefix) {
 }
 
 function getOutputSegments(prefix = '') {
-  const trimmed = prefix.replace(/\/$/, '');
+  const normalised = normalisePrefix(prefix);
+  const trimmed = normalised.replace(/\/$/, '');
   const segments = trimmed ? trimmed.split('/').filter(Boolean) : [];
   if (!segments.length) {
     return ['output'];
@@ -450,12 +452,20 @@ function renderPreview(content, contentType) {
 }
 
 async function loadList() {
+  const requestPrefix = currentPrefix;
+  const token = ++listRequestToken;
   try {
-    const items = await apiFetch(`/output/list?prefix=${encodeURIComponent(currentPrefix)}`);
+    const items = await apiFetch(`/output/list?prefix=${encodeURIComponent(requestPrefix)}`);
+    if (token !== listRequestToken || requestPrefix !== currentPrefix) {
+      return;
+    }
     allItems = Array.isArray(items) ? items : [];
     applyFilters({ resetPage: true });
     updateSortIndicators();
   } catch (error) {
+    if (token !== listRequestToken || requestPrefix !== currentPrefix) {
+      return;
+    }
     showAlert(error.message || 'Failed to list output files');
   }
 }
@@ -555,6 +565,7 @@ breadcrumb.addEventListener('click', (event) => {
   event.preventDefault();
   setCurrentPrefix(link.dataset.prefix ?? OUTPUT_ROOT);
   loadList();
+  resetPreview();
 });
 
 fileList.addEventListener('click', (event) => {

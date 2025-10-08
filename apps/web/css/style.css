@@ -186,12 +186,20 @@ main {
   --bs-gutter-x: 2rem;
 }
 
+.parameter-label {
+  font-size: 0.875rem;
+  color: #475569;
+  font-weight: 500;
+}
+
 .parameter-preview label {
   color: #1f2937;
 }
 
 .parameter-preview textarea {
   min-height: 300px;
+  font-size: 0.875rem;
+  line-height: 1.5;
 }
 
 .files-header {
