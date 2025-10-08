@@ -1,7 +1,5 @@
 import { API_BASE, apiFetch, ensureHealth } from './config.js';
 
-const prefixInput = document.getElementById('prefixInput');
-const listBtn = document.getElementById('listBtn');
 const fileList = document.getElementById('fileList');
 const searchInput = document.getElementById('searchInput');
 const pageSizeSelect = document.getElementById('pageSizeSelect');
@@ -12,7 +10,6 @@ const sortableHeaders = document.querySelectorAll('#fileTable th.sortable');
 const previewPane = document.getElementById('previewPane');
 const alertContainer = document.getElementById('alertContainer');
 const breadcrumb = document.getElementById('breadcrumb');
-const upBtn = document.getElementById('upBtn');
 
 let currentPrefix = 'output/';
 let activePreview = { name: '', contentType: '' };
@@ -113,7 +110,6 @@ function renderBreadcrumb() {
 
   nav.appendChild(ol);
   breadcrumb.appendChild(nav);
-  upBtn.toggleAttribute('disabled', !canGoUp());
 }
 
 function renderList(items) {
@@ -122,26 +118,21 @@ function renderList(items) {
   if (canGoUp()) {
     const row = document.createElement('tr');
     row.dataset.kind = 'up';
-    row.className = 'folder-row';
+    row.className = 'parent-row';
     row.innerHTML = `
       <td>
-        <div class="d-flex align-items-center gap-3">
-          <span class="item-icon up"><i class="bi bi-arrow-up-right"></i></span>
+        <div class="d-flex align-items-center gap-2">
+          <span class="item-icon up" aria-hidden="true"><i class="bi bi-arrow-90deg-up"></i></span>
           <div>
-            <div class="fw-semibold text-primary">Parent</div>
-            <div class="text-muted small">Back to previous level</div>
+            <div class="fw-semibold text-body-secondary small">Parent folder</div>
+            <div class="text-muted small">Back one level</div>
           </div>
         </div>
       </td>
-      <td>Folder</td>
-      <td class="text-end text-muted">-</td>
-      <td class="text-muted">-</td>
-      <td class="text-end">
-        <button class="btn btn-link btn-sm p-0 text-decoration-none d-inline-flex align-items-center gap-1">
-          <i class="bi bi-arrow-up-right"></i>
-          Open
-        </button>
-      </td>
+      <td class="text-muted small">Folder</td>
+      <td class="text-end text-muted small">-</td>
+      <td class="text-muted small">-</td>
+      <td class="text-end text-muted small">-</td>
     `;
     fileList.appendChild(row);
   }
@@ -161,25 +152,23 @@ function renderList(items) {
       row.classList.add('folder-row');
       row.innerHTML = `
         <td>
-          <div class="d-flex align-items-center gap-3">
-            <span class="item-icon folder"><i class="bi bi-folder-fill"></i></span>
+          <div class="d-flex align-items-center gap-2">
+            <span class="item-icon folder" aria-hidden="true"><i class="bi bi-folder"></i></span>
             <span class="fw-semibold">${item.displayName}</span>
           </div>
         </td>
-        <td>Folder</td>
+        <td class="text-muted">Folder</td>
         <td class="text-end text-muted">-</td>
         <td class="text-muted">-</td>
-        <td class="text-end">
-          <button class="btn btn-sm btn-outline-primary" data-open-folder="${item.name}">Open</button>
-        </td>
+        <td class="text-end text-muted small">-</td>
       `;
     } else {
       const timestamp = item.lastModified ? new Date(item.lastModified).toLocaleString() : '-';
       row.dataset.path = item.name;
       row.innerHTML = `
         <td>
-          <div class="d-flex align-items-center gap-3">
-            <span class="item-icon file"><i class="bi bi-file-earmark-text"></i></span>
+          <div class="d-flex align-items-center gap-2">
+            <span class="item-icon file" aria-hidden="true"><i class="bi bi-file-earmark"></i></span>
             <span class="fw-semibold">${item.displayName}</span>
           </div>
         </td>
@@ -187,9 +176,15 @@ function renderList(items) {
         <td class="text-end">${formatSize(item.size ?? 0)}</td>
         <td>${timestamp}</td>
         <td class="text-end">
-          <div class="btn-group btn-group-sm" role="group">
-            <button class="btn btn-outline-primary preview-btn" data-name="${item.name}">Preview</button>
-            <a class="btn btn-success" data-download="true" href="${API_BASE}/output/download?blob=${encodeURIComponent(item.name)}">Download</a>
+          <div class="icon-actions d-inline-flex gap-2">
+            <button class="btn btn-icon preview-btn" data-name="${item.name}" type="button" title="Preview ${item.displayName}" aria-label="Preview ${item.displayName}">
+              <i class="bi bi-eye"></i>
+              <span class="visually-hidden">Preview</span>
+            </button>
+            <a class="btn btn-icon" data-download="true" href="${API_BASE}/output/download?blob=${encodeURIComponent(item.name)}" title="Download ${item.displayName}" aria-label="Download ${item.displayName}" download>
+              <i class="bi bi-download"></i>
+              <span class="visually-hidden">Download</span>
+            </a>
           </div>
         </td>
       `;
@@ -367,21 +362,9 @@ async function previewBlob(name) {
 
 function setCurrentPrefix(prefix) {
   currentPrefix = normalisePrefix(prefix);
-  prefixInput.value = currentPrefix;
   renderBreadcrumb();
   updateUrl();
 }
-
-listBtn.addEventListener('click', () => {
-  setCurrentPrefix(prefixInput.value.trim());
-  loadList();
-});
-
-upBtn.addEventListener('click', () => {
-  if (!canGoUp()) return;
-  setCurrentPrefix(getParentPrefix(currentPrefix));
-  loadList();
-});
 
 searchInput.addEventListener('input', () => {
   if (searchDebounce) {
@@ -447,17 +430,6 @@ fileList.addEventListener('click', (event) => {
     const name = button.getAttribute('data-name');
     if (name) {
       previewBlob(name);
-    }
-    return;
-  }
-
-  const openFolder = event.target.closest('[data-open-folder]');
-  if (openFolder) {
-    const path = openFolder.getAttribute('data-open-folder');
-    if (path) {
-      setCurrentPrefix(path);
-      loadList();
-      previewPane.textContent = 'Select a file to preview';
     }
     return;
   }
