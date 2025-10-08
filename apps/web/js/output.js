@@ -93,6 +93,8 @@ function formatSegmentLabel(segment) {
   }
 }
 
+const FOLDER_ICON_MARKUP = '<span class="item-icon folder" aria-hidden="true"><svg viewBox="0 0 32 24" role="presentation" focusable="false"><path d="M3.5 6.25A2.25 2.25 0 0 1 5.75 4h6.06c.6 0 1.18.24 1.6.66l1.64 1.71h11.2A2.25 2.25 0 0 1 28.5 8.62l-.92 10.13A2.25 2.25 0 0 1 25.35 21H6.15A2.65 2.65 0 0 1 3.5 18.35V6.25Z" fill="#f8bd54"></path><path d="M28.8 9.75H4.2V18.4c0 1.03.84 1.85 1.85 1.85h17.9c.93 0 1.71-.67 1.83-1.58l1.02-8.92Z" fill="#fcd481"></path></svg></span>';
+
 const EXTENSION_ICON_MAP = {
   csv: 'csv',
   tsv: 'csv',
@@ -222,7 +224,7 @@ function renderList(items) {
       row.innerHTML = `
         <td>
           <div class="d-flex align-items-center gap-2">
-            <span class="item-icon folder" aria-hidden="true"><i class="bi bi-folder-fill"></i></span>
+            ${FOLDER_ICON_MARKUP}
             <span class="item-name">${item.displayName}</span>
           </div>
         </td>

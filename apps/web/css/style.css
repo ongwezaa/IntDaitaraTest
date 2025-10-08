@@ -202,8 +202,8 @@ main {
 
 
 .file-browser .item-icon {
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 1.85rem;
+  height: 1.65rem;
   border-radius: 0.5rem;
   display: inline-flex;
   align-items: center;
@@ -221,12 +221,14 @@ main {
 
 
 .file-browser .item-icon.folder {
-  background: rgba(59, 130, 246, 0.15);
-  color: #2563eb;
+  background: transparent;
+  color: inherit;
+  padding: 0;
 }
 
-.file-browser .item-icon.folder i {
-  font-size: 1.05rem;
+.file-browser .item-icon.folder svg {
+  width: 1.7rem;
+  height: 1.3rem;
 }
 
 .file-browser .item-icon.up {
@@ -375,15 +377,21 @@ main {
   background: transparent;
   margin-bottom: 0;
   padding: 0;
-  gap: 0.25rem;
+  gap: 0;
   font-size: 0.95rem;
   font-weight: 500;
   color: #1f2937;
 }
 
+.breadcrumb-container .breadcrumb-item {
+  display: inline-flex;
+  align-items: center;
+}
+
 .breadcrumb-container .breadcrumb-item + .breadcrumb-item::before {
   color: #64748b;
-  padding: 0 0.35rem;
+  padding: 0;
+  margin: 0 0.45rem;
 }
 
 .breadcrumb-container .breadcrumb a {
