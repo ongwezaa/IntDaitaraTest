@@ -68,19 +68,30 @@ main {
 }
 
 .search-input .input-group-text {
-  background-color: #eff6ff;
+  background-color: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(79, 70, 229, 0.35);
   border-right: 0;
-  color: #1d4ed8;
+  color: #4338ca;
+  border-top-left-radius: 999px;
+  border-bottom-left-radius: 999px;
 }
 
 .search-input .form-control {
+  border: 1px solid rgba(79, 70, 229, 0.35);
   border-left: 0;
   padding-left: 0.5rem;
+  background-color: rgba(255, 255, 255, 0.92);
+  border-top-right-radius: 999px;
+  border-bottom-right-radius: 999px;
 }
 
 .search-input .form-control:focus {
-  box-shadow: none;
-  border-color: #1d4ed8;
+  box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.15);
+  border-color: rgba(37, 99, 235, 0.6);
+}
+
+.search-input .form-control::placeholder {
+  color: #94a3b8;
 }
 
 .table td,
@@ -148,6 +159,14 @@ main {
   margin-bottom: 0;
 }
 
+.file-browser thead th {
+  background-color: rgba(59, 130, 246, 0.08);
+  color: #1f2937;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.18);
+  border-top: none;
+}
+
 .file-browser tbody tr.folder-row {
   cursor: pointer;
 }
@@ -158,12 +177,12 @@ main {
 
 
 .file-browser .item-icon {
-  width: 1.1rem;
-  height: 1.1rem;
+  width: 1rem;
+  height: 1rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.05rem;
+  font-size: 1rem;
 }
 
 .file-browser .item-icon i {
@@ -171,7 +190,7 @@ main {
 }
 
 .file-browser .item-icon.folder {
-  color: #fbbf24;
+  color: #facc15;
 }
 
 .file-browser .item-icon.file {
@@ -180,6 +199,34 @@ main {
 
 .file-browser .item-icon.up {
   color: #94a3b8;
+}
+
+.file-browser .item-icon.file.excel {
+  color: #22c55e;
+}
+
+.file-browser .item-icon.file.csv {
+  color: #0ea5e9;
+}
+
+.file-browser .item-icon.file.json {
+  color: #6366f1;
+}
+
+.file-browser .item-icon.file.txt {
+  color: #f97316;
+}
+
+.file-browser .item-icon.file.pdf {
+  color: #ef4444;
+}
+
+.file-browser .item-icon.file.sql {
+  color: #14b8a6;
+}
+
+.file-browser .item-icon.file.xml {
+  color: #a855f7;
 }
 
 .file-browser tbody tr.parent-row {
@@ -195,11 +242,11 @@ main {
 }
 
 .btn-soft {
-  border: 1px solid rgba(79, 70, 229, 0.24);
-  background: rgba(79, 70, 229, 0.08);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(248, 250, 252, 0.95);
   padding: 0.35rem 0.85rem;
   border-radius: 999px;
-  color: #1e1b4b;
+  color: #1f2937;
   font-weight: 500;
   font-size: 0.85rem;
   display: inline-flex;
@@ -215,7 +262,7 @@ main {
 
 .btn-soft:hover,
 .btn-soft:focus {
-  background: rgba(37, 99, 235, 0.16);
+  background: rgba(59, 130, 246, 0.16);
   color: #1d4ed8;
   border-color: rgba(37, 99, 235, 0.35);
   text-decoration: none;
@@ -224,25 +271,25 @@ main {
 }
 
 .btn-copy {
-  border: 1px solid rgba(148, 163, 184, 0.4);
-  background: rgba(15, 23, 42, 0.08);
-  color: #0f172a;
-  font-weight: 500;
+  border: 1px solid rgba(59, 130, 246, 0.85);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 0.95));
+  color: #f8fafc;
+  font-weight: 600;
   border-radius: 999px;
-  padding: 0.25rem 0.85rem;
+  padding: 0.25rem 0.9rem;
   transition: all 0.2s ease;
 }
 
 .btn-copy:disabled {
-  opacity: 0.5;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
 .btn-copy:not(:disabled):hover,
 .btn-copy:not(:disabled):focus {
-  background: rgba(37, 99, 235, 0.12);
-  border-color: rgba(37, 99, 235, 0.35);
-  color: #1d4ed8;
+  background: linear-gradient(135deg, rgba(29, 78, 216, 0.95), rgba(59, 130, 246, 0.95));
+  border-color: rgba(29, 78, 216, 0.85);
+  color: #f8fafc;
   box-shadow: none;
 }
 

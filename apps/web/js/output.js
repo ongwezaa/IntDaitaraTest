@@ -80,6 +80,41 @@ function formatSegmentLabel(segment) {
   }
 }
 
+const EXTENSION_ICON_MAP = {
+  csv: 'csv',
+  tsv: 'csv',
+  txt: 'txt',
+  log: 'txt',
+  json: 'json',
+  ndjson: 'json',
+  xls: 'excel',
+  xlsx: 'excel',
+  xlsm: 'excel',
+  xlsb: 'excel',
+  sql: 'sql',
+  xml: 'xml',
+  pdf: 'pdf',
+};
+
+const ICON_CLASS_BY_VARIANT = {
+  csv: 'bi bi-filetype-csv',
+  json: 'bi bi-filetype-json',
+  txt: 'bi bi-filetype-txt',
+  excel: 'bi bi-file-earmark-spreadsheet',
+  sql: 'bi bi-filetype-sql',
+  xml: 'bi bi-filetype-xml',
+  pdf: 'bi bi-filetype-pdf',
+  default: 'bi bi-file-earmark',
+};
+
+function getFileIconInfo(name = '') {
+  const match = name.toLowerCase().match(/\.([a-z0-9]+)$/);
+  const extension = match ? match[1] : '';
+  const variant = EXTENSION_ICON_MAP[extension] || 'default';
+  const iconClass = ICON_CLASS_BY_VARIANT[variant] || ICON_CLASS_BY_VARIANT.default;
+  return { iconClass, variant };
+}
+
 function renderBreadcrumb() {
   breadcrumb.innerHTML = '';
   const nav = document.createElement('nav');
@@ -88,31 +123,26 @@ function renderBreadcrumb() {
   ol.className = 'breadcrumb mb-0';
 
   const segments = currentPrefix.replace(/\/$/, '').split('/').filter(Boolean);
-  const hasSegments = segments.length > 0;
-  const rootSegment = hasSegments ? segments[0] : 'output';
-  const rootLabel = 'Documents';
-  const rootPath = `${rootSegment}/`;
-  const rootLi = document.createElement('li');
 
-  if (segments.length <= 1) {
+  const rootLi = document.createElement('li');
+  if (segments.length === 0) {
     rootLi.className = 'breadcrumb-item active';
-    rootLi.textContent = rootLabel;
+    rootLi.textContent = 'root';
   } else {
     rootLi.className = 'breadcrumb-item';
     const link = document.createElement('a');
     link.href = '#';
-    link.textContent = rootLabel;
-    link.dataset.prefix = rootPath;
+    link.textContent = 'root';
+    link.dataset.prefix = '';
     rootLi.appendChild(link);
   }
   ol.appendChild(rootLi);
 
-  let cumulative = rootSegment;
-  const tail = segments.slice(1);
-  tail.forEach((segment, index) => {
-    cumulative = `${cumulative}/${segment}`;
+  let cumulative = '';
+  segments.forEach((segment, index) => {
+    cumulative = cumulative ? `${cumulative}/${segment}` : segment;
     const li = document.createElement('li');
-    if (index === tail.length - 1) {
+    if (index === segments.length - 1) {
       li.className = 'breadcrumb-item active';
       li.textContent = formatSegmentLabel(segment);
     } else {
@@ -151,13 +181,13 @@ function renderList(items) {
       <td>
         <div class="d-flex align-items-center gap-2">
           <span class="item-icon up" aria-hidden="true"><i class="bi bi-arrow-left-short"></i></span>
-          <span class="fw-semibold text-body-secondary">Back</span>
+          <span class="text-body-secondary">Back</span>
         </div>
       </td>
-      <td class="text-muted small"></td>
-      <td class="text-end text-muted small"></td>
-      <td class="text-muted small"></td>
-      <td class="text-end text-muted small"></td>
+      <td></td>
+      <td class="text-end"></td>
+      <td></td>
+      <td class="text-end"></td>
     `;
     fileList.appendChild(row);
   }
@@ -178,23 +208,25 @@ function renderList(items) {
       row.innerHTML = `
         <td>
           <div class="d-flex align-items-center gap-2">
-            <span class="item-icon folder" aria-hidden="true"><i class="bi bi-folder-fill"></i></span>
-            <span class="fw-semibold">${item.displayName}</span>
+            <span class="item-icon folder" aria-hidden="true"><i class="bi bi-folder2-open"></i></span>
+            <span class="item-name">${item.displayName}</span>
           </div>
         </td>
         <td class="text-muted">Folder</td>
-        <td class="text-end text-muted"></td>
-        <td class="text-muted"></td>
-        <td class="text-end text-muted small"></td>
+        <td class="text-end"></td>
+        <td></td>
+        <td class="text-end"></td>
       `;
     } else {
       const timestamp = item.lastModified ? new Date(item.lastModified).toLocaleString() : '';
       row.dataset.path = item.name;
+      const { iconClass, variant } = getFileIconInfo(item.name);
+      const variantClass = variant && variant !== 'default' ? ` ${variant}` : '';
       row.innerHTML = `
         <td>
           <div class="d-flex align-items-center gap-2">
-            <span class="item-icon file" aria-hidden="true"><i class="bi bi-file-earmark"></i></span>
-            <span class="fw-semibold">${item.displayName}</span>
+            <span class="item-icon file${variantClass}" aria-hidden="true"><i class="${iconClass}"></i></span>
+            <span class="item-name">${item.displayName}</span>
           </div>
         </td>
         <td>File</td>
