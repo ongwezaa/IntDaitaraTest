@@ -49,31 +49,20 @@
         </div>
         <div class="card-body">
           <div class="breadcrumb-container mb-3" id="breadcrumb"></div>
-          <div class="row g-3 align-items-end mt-0">
-            <div class="col-md-6 col-lg-4">
-              <label class="form-label" for="searchInput">Search name</label>
-              <input
-                class="form-control"
-                id="searchInput"
-                placeholder="Filter by file or folder"
-              />
-            </div>
-            <div class="col-md-4 col-lg-2">
-              <label class="form-label" for="pageSizeSelect">Page size</label>
-              <select class="form-select" id="pageSizeSelect">
-                <option value="10" selected>10</option>
-                <option value="20">20</option>
-                <option value="100">100</option>
-              </select>
-            </div>
+          <div class="d-flex flex-wrap align-items-center gap-3 search-controls">
+            <label class="form-label mb-0" for="searchInput">Search name</label>
+            <input
+              class="form-control flex-grow-1 flex-md-grow-0"
+              id="searchInput"
+              placeholder="Filter by file or folder"
+            />
           </div>
         </div>
       </div>
 
       <div class="card mt-4 shadow-sm">
-        <div class="card-header bg-transparent border-0 pb-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="card-header bg-transparent border-0 pb-0">
           <h2 class="h5 mb-0">Files &amp; folders</h2>
-          <div class="text-muted small" id="pageSummary"></div>
         </div>
         <div class="card-body pt-3">
           <div class="file-browser table-responsive">
@@ -90,9 +79,20 @@
               <tbody id="fileList"></tbody>
             </table>
           </div>
-          <div class="d-flex justify-content-end align-items-center gap-2 mt-3" id="paginationControls">
-            <button class="btn btn-outline-secondary btn-sm" id="prevPageBtn">Previous</button>
-            <button class="btn btn-outline-secondary btn-sm" id="nextPageBtn">Next</button>
+          <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 mt-3">
+            <div class="d-flex flex-wrap align-items-center gap-3" id="pageSizeContainer">
+              <label class="form-label form-label-sm mb-0" for="pageSizeSelect">Page size</label>
+              <select class="form-select form-select-sm" id="pageSizeSelect">
+                <option value="10" selected>10</option>
+                <option value="20">20</option>
+                <option value="100">100</option>
+              </select>
+              <div class="text-muted small" id="pageSummary"></div>
+            </div>
+            <div class="d-flex justify-content-end align-items-center gap-2" id="paginationControls">
+              <button class="btn btn-outline-secondary btn-sm" id="prevPageBtn">Previous</button>
+              <button class="btn btn-outline-secondary btn-sm" id="nextPageBtn">Next</button>
+            </div>
           </div>
         </div>
       </div>

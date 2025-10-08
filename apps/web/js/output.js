@@ -150,7 +150,7 @@ function renderList(items) {
       row.innerHTML = `
         <td>
           <div class="d-flex align-items-center gap-2">
-            <span class="item-icon folder" aria-hidden="true"><i class="bi bi-folder-fill"></i></span>
+            <span class="item-icon folder" aria-hidden="true"><i class="bi bi-folder2"></i></span>
             <span class="fw-semibold">${item.displayName}</span>
           </div>
         </td>
@@ -165,7 +165,7 @@ function renderList(items) {
       row.innerHTML = `
         <td>
           <div class="d-flex align-items-center gap-2">
-            <span class="item-icon file" aria-hidden="true"><i class="bi bi-file-earmark"></i></span>
+            <span class="item-icon file" aria-hidden="true"><i class="bi bi-file-earmark-text"></i></span>
             <span class="fw-semibold">${item.displayName}</span>
           </div>
         </td>
