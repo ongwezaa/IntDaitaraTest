@@ -10,18 +10,29 @@ export function createLogicAppRouter(store: RunStore) {
 
   router.post('/trigger', async (req, res, next) => {
     try {
-      const { fileName, parameters } = req.body ?? {};
-      if (!fileName || typeof fileName !== 'string') {
-        return res.status(400).json({ ok: false, message: 'fileName is required' });
+      const { parameters } = req.body ?? {};
+      const params = parameters && typeof parameters === 'object' ? (parameters as Record<string, unknown>) : {};
+      const fileParam = params.file;
+      if (typeof fileParam !== 'string' || !fileParam.trim()) {
+        return res.status(400).json({ ok: false, message: 'parameters.file is required' });
       }
-      const params = (parameters && typeof parameters === 'object') ? parameters : {};
+      const fileName = fileParam.trim();
       const runId = ulid();
-      const sasUrl = buildBlobSas(fileName, 'r', appConfig.sasExpiryMinutes);
-      const triggerResult = await triggerLogicApp({ sasUrl, parameters: params });
+      const fileKeys = ['file', 'config', 'sourceMappingPrompt', 'selectMappingPrompt'] as const;
+      const payload: Record<string, unknown> = { ...params };
+
+      fileKeys.forEach((key) => {
+        const value = params[key];
+        if (typeof value === 'string' && value.trim()) {
+          payload[key] = buildBlobSas(value.trim(), 'r', appConfig.sasExpiryMinutes);
+        }
+      });
+
+      const triggerResult = await triggerLogicApp({ payload });
       const run = store.create({
         id: runId,
         fileName,
-        fileUrl: sasUrl,
+        fileUrl: typeof payload.file === 'string' ? String(payload.file) : buildBlobSas(fileName, 'r', appConfig.sasExpiryMinutes),
         parameters: params,
         outputPrefix: `${appConfig.outputPrefix}${runId}/`,
         logicRunId: triggerResult.runId ?? null,

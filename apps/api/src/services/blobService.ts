@@ -11,6 +11,8 @@ import mime from 'mime-types';
 import { appConfig } from '../config.js';
 import { ListBlobItem } from '../types.js';
 
+const FOLDER_PLACEHOLDER = '.daitara-folder';
+
 const credential = new StorageSharedKeyCredential(appConfig.storageAccount, appConfig.storageKey);
 const blobService = new BlobServiceClient(`https://${appConfig.storageAccount}.blob.core.windows.net`, credential);
 
@@ -24,6 +26,17 @@ export async function uploadToBlob(blobPath: string, buffer: Buffer, contentType
   await blockBlob.uploadData(buffer, {
     blobHTTPHeaders: {
       blobContentType: contentType,
+    },
+  });
+}
+
+export async function createFolderBlob(folderPath: string): Promise<void> {
+  const normalised = folderPath.endsWith('/') ? folderPath : `${folderPath}/`;
+  const container = getContainer();
+  const blobClient = container.getBlockBlobClient(`${normalised}${FOLDER_PLACEHOLDER}`);
+  await blobClient.uploadData(Buffer.alloc(0), {
+    blobHTTPHeaders: {
+      blobContentType: 'application/x-directory',
     },
   });
 }
@@ -48,6 +61,23 @@ export async function listBlobs(prefix: string, options: ListOptions = {}): Prom
 
   for await (const item of container.listBlobsFlat({ prefix })) {
     if (!item.name) continue;
+    if (item.name.endsWith(`/${FOLDER_PLACEHOLDER}`)) {
+      const folderName = item.name.slice(0, -FOLDER_PLACEHOLDER.length - 1);
+      const fullPath = `${folderName}/`;
+      if (fullPath === normalisedPrefix) {
+        continue;
+      }
+      const displayName = folderName.split('/').pop() ?? folderName;
+      if (!folderSet.has(fullPath)) {
+        folderSet.add(fullPath);
+        results.push({
+          name: fullPath,
+          displayName,
+          kind: 'folder',
+        });
+      }
+      continue;
+    }
     if (!hierarchical) {
       results.push({
         name: item.name,

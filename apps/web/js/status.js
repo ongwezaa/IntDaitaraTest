@@ -5,16 +5,36 @@ const refreshBtn = document.getElementById('refreshBtn');
 const alertContainer = document.getElementById('alertContainer');
 const detailsModalEl = document.getElementById('detailsModal');
 const detailsContent = document.getElementById('detailsContent');
+const searchInput = document.getElementById('searchInput');
+const pageSizeSelect = document.getElementById('pageSizeSelect');
+const pageSummary = document.getElementById('pageSummary');
+const prevPageBtn = document.getElementById('prevPageBtn');
+const nextPageBtn = document.getElementById('nextPageBtn');
+const sortableHeaders = document.querySelectorAll('#runsTable th.sortable');
+
 let detailsModal;
+let allRuns = [];
+let filteredRuns = [];
+let currentPage = 1;
+let sortKey = 'createdAt';
+let sortDirection = 'desc';
+let searchDebounce;
+
+function escapeHtml(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
 
 function showAlert(message, type = 'danger') {
   const wrapper = document.createElement('div');
   wrapper.className = `alert alert-${type} alert-dismissible fade show`;
   wrapper.innerHTML = `
-    ${message}
+    ${escapeHtml(String(message))}
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   `;
-  alertContainer.appendChild(wrapper);
+  alertContainer?.appendChild(wrapper);
 }
 
 function formatDate(value) {
@@ -34,40 +54,131 @@ function statusBadge(status) {
     Unknown: 'secondary',
   };
   const cls = map[status] || 'secondary';
-  return `<span class="badge bg-${cls}">${status}</span>`;
+  return `<span class="badge bg-${cls}">${escapeHtml(status)}</span>`;
+}
+
+function getPageSize() {
+  const value = Number(pageSizeSelect?.value);
+  return Number.isFinite(value) && value > 0 ? value : 10;
+}
+
+function updatePagination(totalItems, pageSize) {
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  if (currentPage > totalPages) {
+    currentPage = totalPages;
+  }
+  const startIndex = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const endIndex = Math.min(totalItems, currentPage * pageSize);
+  if (pageSummary) {
+    pageSummary.textContent = totalItems
+      ? `Showing ${startIndex} – ${endIndex} of ${totalItems} runs`
+      : 'No runs to display';
+  }
+  if (prevPageBtn) prevPageBtn.disabled = currentPage <= 1;
+  if (nextPageBtn) nextPageBtn.disabled = currentPage >= totalPages || totalItems === 0;
+}
+
+function sortRuns(runs) {
+  const direction = sortDirection === 'desc' ? -1 : 1;
+  return [...runs].sort((a, b) => {
+    let valueA;
+    let valueB;
+    switch (sortKey) {
+      case 'createdAt':
+      case 'updatedAt':
+        valueA = a[sortKey] ? new Date(a[sortKey]).getTime() : 0;
+        valueB = b[sortKey] ? new Date(b[sortKey]).getTime() : 0;
+        break;
+      case 'status':
+        valueA = a.status || '';
+        valueB = b.status || '';
+        break;
+      case 'fileName':
+        valueA = (a.fileName || '').toLowerCase();
+        valueB = (b.fileName || '').toLowerCase();
+        break;
+      case 'targetEnv':
+        valueA = (a.parameters?.target_env || '').toLowerCase();
+        valueB = (b.parameters?.target_env || '').toLowerCase();
+        break;
+      case 'id':
+      default:
+        valueA = (a.id || '').toLowerCase();
+        valueB = (b.id || '').toLowerCase();
+    }
+    if (valueA < valueB) return -1 * direction;
+    if (valueA > valueB) return 1 * direction;
+    return 0;
+  });
+}
+
+function applyFilters({ resetPage = false } = {}) {
+  const term = searchInput?.value.trim().toLowerCase() ?? '';
+  filteredRuns = allRuns.filter((run) => {
+    if (!term) return true;
+    const haystack = [
+      run.id,
+      run.fileName,
+      run.parameters?.target_env,
+      run.parameters?.target_type,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    return haystack.includes(term);
+  });
+  filteredRuns = sortRuns(filteredRuns);
+  if (resetPage) {
+    currentPage = 1;
+  }
+  const pageSize = getPageSize();
+  updatePagination(filteredRuns.length, pageSize);
+  const start = (currentPage - 1) * pageSize;
+  const pageItems = filteredRuns.slice(start, start + pageSize);
+  renderRows(pageItems);
+}
+
+function updateSortIndicators() {
+  sortableHeaders.forEach((header) => {
+    const key = header.dataset.sort;
+    if (key === sortKey) {
+      header.dataset.direction = sortDirection;
+    } else {
+      header.removeAttribute('data-direction');
+    }
+  });
 }
 
 function renderRows(runs) {
+  if (!tableBody) return;
   tableBody.innerHTML = '';
   if (!runs.length) {
     const row = document.createElement('tr');
-    const cell = document.createElement('td');
-    cell.colSpan = 6;
-    cell.textContent = 'No runs yet.';
-    row.appendChild(cell);
+    row.innerHTML = '<td colspan="7" class="text-center text-muted py-4">No runs yet.</td>';
     tableBody.appendChild(row);
     return;
   }
   runs.forEach((run) => {
     const row = document.createElement('tr');
+    const targetEnv = run.parameters?.target_env ?? '-';
+    const outputLink = run.status === 'Succeeded' && run.outputPrefix
+      ? `<a class="btn btn-soft btn-sm" href="/output?prefix=${encodeURIComponent(run.outputPrefix)}">Outputs</a>`
+      : '';
     row.innerHTML = `
-      <td>${run.fileName}</td>
-      <td>${run.id}</td>
+      <td>${escapeHtml(formatDate(run.createdAt))}</td>
+      <td>${escapeHtml(run.id)}</td>
+      <td>${escapeHtml(run.fileName || '-')}</td>
+      <td>${escapeHtml(targetEnv)}</td>
       <td>${statusBadge(run.status)}</td>
-      <td>${formatDate(run.createdAt)}</td>
-      <td>${formatDate(run.updatedAt)}</td>
+      <td>${escapeHtml(formatDate(run.updatedAt))}</td>
       <td>
-        <button class="btn btn-sm btn-outline-primary poll-btn" data-id="${run.id}">Poll</button>
-        ${run.status === 'Succeeded' ? `<a class="btn btn-sm btn-success ms-2" href="/output?prefix=${encodeURIComponent(run.outputPrefix)}">Outputs</a>` : ''}
+        <div class="d-inline-flex flex-wrap gap-2">
+          <button class="btn btn-soft btn-sm poll-btn" data-id="${run.id}" type="button">Poll</button>
+          <button class="btn btn-soft btn-sm details-btn" data-id="${run.id}" type="button">Details</button>
+          ${outputLink}
+        </div>
       </td>
     `;
-    row.addEventListener('click', (event) => {
-      if ((event.target).classList.contains('poll-btn')) {
-        return;
-      }
-      detailsContent.textContent = JSON.stringify(run, null, 2);
-      detailsModal.show();
-    });
     tableBody.appendChild(row);
   });
 }
@@ -75,7 +186,9 @@ function renderRows(runs) {
 async function loadRuns() {
   try {
     const runs = await apiFetch('/runs');
-    renderRows(runs);
+    allRuns = Array.isArray(runs) ? runs : [];
+    applyFilters({ resetPage: true });
+    updateSortIndicators();
   } catch (error) {
     showAlert(error.message || 'Failed to load runs');
   }
@@ -84,30 +197,106 @@ async function loadRuns() {
 async function pollRun(id) {
   try {
     const updated = await apiFetch(`/runs/${id}/poll`, { method: 'POST' });
-    const runs = await apiFetch('/runs');
-    renderRows(runs);
     showAlert(`Run ${updated.id} status: ${updated.status}`, 'info');
+    await loadRuns();
   } catch (error) {
     showAlert(error.message || 'Failed to poll run');
   }
 }
 
-refreshBtn.addEventListener('click', loadRuns);
+function showDetails(run) {
+  if (!detailsContent) return;
+  detailsContent.textContent = JSON.stringify(run, null, 2);
+  detailsModal?.show();
+}
 
-tableBody.addEventListener('click', (event) => {
-  const button = event.target.closest('.poll-btn');
-  if (button) {
-    event.stopPropagation();
-    const id = button.getAttribute('data-id');
-    pollRun(id);
+function attachEventListeners() {
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', loadRuns);
   }
-});
+
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      if (searchDebounce) clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(() => {
+        applyFilters({ resetPage: true });
+      }, 200);
+    });
+  }
+
+  if (pageSizeSelect) {
+    pageSizeSelect.addEventListener('change', () => {
+      currentPage = 1;
+      applyFilters();
+    });
+  }
+
+  if (prevPageBtn) {
+    prevPageBtn.addEventListener('click', () => {
+      if (currentPage <= 1) return;
+      currentPage -= 1;
+      applyFilters();
+    });
+  }
+
+  if (nextPageBtn) {
+    nextPageBtn.addEventListener('click', () => {
+      const pageSize = getPageSize();
+      const totalPages = Math.max(1, Math.ceil(filteredRuns.length / pageSize));
+      if (currentPage >= totalPages) return;
+      currentPage += 1;
+      applyFilters();
+    });
+  }
+
+  sortableHeaders.forEach((header) => {
+    header.addEventListener('click', () => {
+      const key = header.dataset.sort;
+      if (!key) return;
+      if (sortKey === key) {
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortKey = key;
+        sortDirection = key === 'createdAt' || key === 'updatedAt' ? 'desc' : 'asc';
+      }
+      updateSortIndicators();
+      applyFilters();
+    });
+  });
+
+  if (tableBody) {
+    tableBody.addEventListener('click', (event) => {
+      const pollButton = event.target.closest('.poll-btn');
+      if (pollButton) {
+        const id = pollButton.getAttribute('data-id');
+        if (id) {
+          pollRun(id);
+        }
+        return;
+      }
+      const detailsButton = event.target.closest('.details-btn');
+      if (detailsButton) {
+        const id = detailsButton.getAttribute('data-id');
+        if (id) {
+          const run = allRuns.find((item) => item.id === id);
+          if (run) {
+            showDetails(run);
+          }
+        }
+      }
+    });
+  }
+}
+
+attachEventListeners();
 
 (async () => {
   try {
     await ensureHealth();
+    if (window.bootstrap && detailsModalEl) {
+      detailsModal = new window.bootstrap.Modal(detailsModalEl);
+    }
     await loadRuns();
-    detailsModal = new bootstrap.Modal(detailsModalEl);
   } catch (error) {
     showAlert('Backend unavailable. Please confirm the API is running.');
   }

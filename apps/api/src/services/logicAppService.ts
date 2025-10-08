@@ -2,11 +2,6 @@ import axios from 'axios';
 import { appConfig } from '../config.js';
 import { RunStatus } from '../types.js';
 
-interface TriggerInput {
-  sasUrl: string;
-  parameters: Record<string, unknown>;
-}
-
 interface TriggerResult {
   runId?: string;
   trackingUrl?: string;
@@ -14,13 +9,16 @@ interface TriggerResult {
   status: RunStatus;
 }
 
-export async function triggerLogicApp({ sasUrl, parameters }: TriggerInput): Promise<TriggerResult> {
-  const payload = {
-    file: sasUrl,
+interface TriggerInput {
+  payload: Record<string, unknown>;
+}
+
+export async function triggerLogicApp({ payload }: TriggerInput): Promise<TriggerResult> {
+  const body = {
     config: '',
     sourceMappingPrompt: '',
     selectMappingPrompt: '',
-    ...parameters,
+    ...payload,
   };
 
   const headers: Record<string, string> = {
@@ -30,7 +28,7 @@ export async function triggerLogicApp({ sasUrl, parameters }: TriggerInput): Pro
     headers.Authorization = `Bearer ${appConfig.logicAppBearer}`;
   }
 
-  const response = await axios.post(appConfig.logicAppUrl, payload, {
+  const response = await axios.post(appConfig.logicAppUrl, body, {
     headers,
     validateStatus: () => true,
   });

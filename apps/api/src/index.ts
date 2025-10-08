@@ -48,6 +48,7 @@ function sendHtml(res: Response, fileName: string) {
 }
 
 app.get('/', (req, res) => sendHtml(res, 'index.html'));
+app.get('/generate', (req, res) => sendHtml(res, 'generate.html'));
 app.get('/status', (req, res) => sendHtml(res, 'status.html'));
 app.get('/output', (req, res) => sendHtml(res, 'output.html'));
 
