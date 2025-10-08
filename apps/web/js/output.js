@@ -1,5 +1,7 @@
 import { API_BASE, apiFetch, ensureHealth } from './config.js';
 
+const OUTPUT_ROOT = 'output/';
+
 const fileList = document.getElementById('fileList');
 const searchInput = document.getElementById('searchInput');
 const pageSizeSelect = document.getElementById('pageSizeSelect');
@@ -13,7 +15,7 @@ const copyPreviewLabel = copyPreviewBtn ? copyPreviewBtn.querySelector('.btn-cop
 const alertContainer = document.getElementById('alertContainer');
 const breadcrumb = document.getElementById('breadcrumb');
 
-let currentPrefix = 'output/';
+let currentPrefix = OUTPUT_ROOT;
 let activePreview = { name: '', contentType: '' };
 let allItems = [];
 let filteredItems = [];
@@ -47,8 +49,29 @@ function showAlert(message, type = 'danger') {
 }
 
 function normalisePrefix(value) {
-  if (!value) return '';
-  return value.endsWith('/') ? value : `${value}/`;
+  let raw = (value ?? '').toString().trim();
+  if (!raw) {
+    return OUTPUT_ROOT;
+  }
+  raw = raw.replace(/\\/g, '/').replace(/\/{2,}/g, '/').replace(/^\/+/, '');
+  if (!raw) {
+    return OUTPUT_ROOT;
+  }
+  if (!raw.startsWith('output')) {
+    return OUTPUT_ROOT;
+  }
+  if (raw === 'output') {
+    return OUTPUT_ROOT;
+  }
+  if (raw.startsWith('output/')) {
+    return raw.endsWith('/') ? raw : `${raw}/`;
+  }
+  const remainder = raw.slice('output'.length).replace(/^\/?/, '');
+  if (!remainder) {
+    return OUTPUT_ROOT;
+  }
+  const candidate = `output/${remainder}`;
+  return candidate.endsWith('/') ? candidate : `${candidate}/`;
 }
 
 function formatSize(bytes) {
@@ -59,22 +82,38 @@ function formatSize(bytes) {
 }
 
 function getParentPrefix(prefix) {
-  const trimmed = prefix.replace(/\/$/, '');
-  if (!trimmed) return '';
-  const lastSlash = trimmed.lastIndexOf('/');
-  if (lastSlash === -1) {
-    return '';
+  const normalised = normalisePrefix(prefix);
+  if (normalised === OUTPUT_ROOT) {
+    return OUTPUT_ROOT;
   }
-  return `${trimmed.slice(0, lastSlash)}/`;
+  const trimmed = normalised.replace(/\/$/, '');
+  const lastSlash = trimmed.lastIndexOf('/');
+  if (lastSlash <= 0) {
+    return OUTPUT_ROOT;
+  }
+  const parent = `${trimmed.slice(0, lastSlash)}/`;
+  return parent.startsWith(OUTPUT_ROOT) ? parent : OUTPUT_ROOT;
+}
+
+function getOutputSegments(prefix = '') {
+  const trimmed = prefix.replace(/\/$/, '');
+  const segments = trimmed ? trimmed.split('/').filter(Boolean) : [];
+  if (!segments.length) {
+    return ['output'];
+  }
+  if (segments[0] !== 'output') {
+    segments.unshift('output');
+  }
+  return segments;
 }
 
 function canGoUp() {
-  return Boolean(currentPrefix && currentPrefix.replace(/\/$/, ''));
+  return currentPrefix !== OUTPUT_ROOT;
 }
 
 function updateUrl() {
   const url = new URL(window.location.href);
-  if (currentPrefix) {
+  if (currentPrefix && currentPrefix !== OUTPUT_ROOT) {
     url.searchParams.set('prefix', currentPrefix);
   } else {
     url.searchParams.delete('prefix');
@@ -138,27 +177,30 @@ function renderBreadcrumb() {
   const ol = document.createElement('ol');
   ol.className = 'breadcrumb mb-0';
 
-  const segments = currentPrefix.replace(/\/$/, '').split('/').filter(Boolean);
+  const segments = getOutputSegments(currentPrefix);
 
-  const rootLi = document.createElement('li');
-  if (segments.length === 0) {
-    rootLi.className = 'breadcrumb-item active';
-    rootLi.textContent = 'root';
-  } else {
+  if (segments.length) {
+    const rootLi = document.createElement('li');
     rootLi.className = 'breadcrumb-item';
-    const link = document.createElement('a');
-    link.href = '#';
-    link.textContent = 'root';
-    link.dataset.prefix = '';
-    rootLi.appendChild(link);
+    const rootLink = document.createElement('a');
+    rootLink.href = '#';
+    rootLink.textContent = 'root';
+    rootLink.dataset.prefix = OUTPUT_ROOT;
+    rootLi.appendChild(rootLink);
+    ol.appendChild(rootLi);
+  } else {
+    const rootOnly = document.createElement('li');
+    rootOnly.className = 'breadcrumb-item active';
+    rootOnly.textContent = 'root';
+    ol.appendChild(rootOnly);
   }
-  ol.appendChild(rootLi);
 
   let cumulative = '';
   segments.forEach((segment, index) => {
     cumulative = cumulative ? `${cumulative}/${segment}` : segment;
     const li = document.createElement('li');
-    if (index === segments.length - 1) {
+    const isLast = index === segments.length - 1;
+    if (isLast) {
       li.className = 'breadcrumb-item active';
       li.textContent = formatSegmentLabel(segment);
     } else {
@@ -219,7 +261,8 @@ function renderList(items) {
     const row = document.createElement('tr');
     row.dataset.kind = item.kind;
     if (item.kind === 'folder') {
-      row.dataset.path = item.name;
+      const targetPath = normalisePrefix(item.name);
+      row.dataset.path = targetPath;
       row.classList.add('folder-row');
       row.innerHTML = `
         <td>
@@ -257,7 +300,7 @@ function renderList(items) {
         <td class="text-end">
           <div class="d-inline-flex flex-wrap gap-2 justify-content-end">
             <button class="btn btn-soft btn-sm preview-btn" data-name="${item.name}" type="button">
-              Preview
+              View
             </button>
             <a class="btn btn-soft btn-sm" data-download="true" href="${API_BASE}/output/download?blob=${encodeURIComponent(item.name)}" download>
               Download
@@ -510,7 +553,7 @@ breadcrumb.addEventListener('click', (event) => {
   const link = event.target.closest('a[data-prefix]');
   if (!link) return;
   event.preventDefault();
-  setCurrentPrefix(link.dataset.prefix ?? '');
+  setCurrentPrefix(link.dataset.prefix ?? OUTPUT_ROOT);
   loadList();
 });
 
@@ -568,7 +611,7 @@ if (copyPreviewBtn) {
   try {
     await ensureHealth();
     const params = new URLSearchParams(window.location.search);
-    const prefix = params.get('prefix') || 'output/';
+    const prefix = params.get('prefix') || OUTPUT_ROOT;
     setCurrentPrefix(prefix);
     await loadList();
   } catch (error) {
