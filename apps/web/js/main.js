@@ -21,6 +21,12 @@ const previewPane = document.getElementById('previewPane');
 const previewModalTitle = document.getElementById('previewModalTitle');
 const copyPreviewBtn = document.getElementById('copyPreviewBtn');
 const alertContainer = document.getElementById('alertContainer');
+const renameModalEl = document.getElementById('renameModal');
+const renameNameInput = document.getElementById('renameNameInput');
+const renameConfirmBtn = document.getElementById('renameConfirmBtn');
+const deleteModalEl = document.getElementById('deleteModal');
+const deleteConfirmBtn = document.getElementById('deleteConfirmBtn');
+const deleteTargetName = document.getElementById('deleteTargetName');
 
 const fileSelect = document.getElementById('fileSelect');
 const configSelect = document.getElementById('configSelect');
@@ -36,11 +42,17 @@ const triggerBtn = document.getElementById('triggerBtn');
 const triggerSpinner = document.getElementById('triggerSpinner');
 const resetParamsBtn = document.getElementById('resetParamsBtn');
 
-const copyButtonDefaultLabel = copyPreviewBtn ? copyPreviewBtn.querySelector('.btn-copy-label')?.textContent?.trim() ?? 'Copy' : 'Copy';
+const copyButtonDefaultLabel = copyPreviewBtn
+  ? copyPreviewBtn.querySelector('.btn-copy-label')?.textContent?.trim() ?? 'Copy'
+  : 'Copy';
+
+const INPUT_ROOT = 'input/';
 
 let bootstrapModal;
 let folderModal;
-let currentPrefix = 'input/';
+let renameModal;
+let deleteModal;
+let currentPrefix = INPUT_ROOT;
 let allItems = [];
 let filteredItems = [];
 let currentPage = 1;
@@ -50,12 +62,8 @@ let searchDebounce;
 let lastPreviewText = '';
 let allFilesFlat = [];
 let hasInitialisedParams = false;
-const DEFAULT_FILE_NAMES = {
-  file: 'FOR TEST CIMB_Metadata_Application 1.xlsx',
-  config: 'cimb_config.json',
-  sourceMappingPrompt: 'custom_source_cimb.txt',
-  selectMappingPrompt: 'custom_select_cimb.txt',
-};
+let renameContext = null;
+let deleteContext = null;
 
 function escapeHtml(value = '') {
   return value
@@ -66,6 +74,37 @@ function escapeHtml(value = '') {
 
 function escapeAttr(value = '') {
   return escapeHtml(value).replace(/"/g, '&quot;');
+}
+
+function getInputSegments(prefix = '') {
+  const trimmed = prefix.replace(/\/$/, '');
+  const segments = trimmed ? trimmed.split('/').filter(Boolean) : [];
+  if (!segments.length) {
+    return ['input'];
+  }
+  if (segments[0] !== 'input') {
+    segments.unshift('input');
+  }
+  return segments;
+}
+
+function formatRelativePath(path = '') {
+  if (!path) return '';
+  const trimmed = path.replace(/\/$/, '');
+  if (trimmed === 'input') return '';
+  if (trimmed.startsWith('input/')) {
+    return trimmed.slice('input/'.length);
+  }
+  return trimmed;
+}
+
+function formatFriendlyPath(path = '') {
+  const trimmed = path.replace(/\/$/, '');
+  if (!trimmed || trimmed === 'input') {
+    return 'root/input';
+  }
+  const relative = formatRelativePath(trimmed);
+  return relative ? `root/input/${relative}` : 'root/input';
 }
 
 function showAlert(message, type = 'danger') {
@@ -94,7 +133,7 @@ function getParentPrefix(prefix) {
 }
 
 function canGoUp() {
-  return Boolean(currentPrefix && currentPrefix !== '' && currentPrefix !== normalisePrefix('')) && currentPrefix !== 'input/';
+  return currentPrefix !== INPUT_ROOT;
 }
 
 function setCopyButtonLabel(text) {
@@ -111,8 +150,7 @@ function setCopyButtonLabel(text) {
 
 function updateCurrentPathLabel() {
   if (!currentPathLabel) return;
-  const display = currentPrefix ? `root/${currentPrefix.replace(/\/$/, '')}` : 'root';
-  currentPathLabel.textContent = display || 'root';
+  currentPathLabel.textContent = formatFriendlyPath(currentPrefix);
 }
 
 function formatSize(bytes) {
@@ -179,33 +217,36 @@ function getFileIconInfo(name = '') {
 function renderBreadcrumb() {
   if (!breadcrumb) return;
   breadcrumb.innerHTML = '';
+
   const nav = document.createElement('nav');
   nav.setAttribute('aria-label', 'breadcrumb');
   const ol = document.createElement('ol');
   ol.className = 'breadcrumb mb-0';
 
-  const segments = currentPrefix.replace(/\/$/, '').split('/').filter(Boolean);
+  const segments = getInputSegments(currentPrefix);
 
-  const rootLi = document.createElement('li');
-  if (!segments.length || currentPrefix === 'input/') {
-    rootLi.className = 'breadcrumb-item active';
-    rootLi.textContent = 'root';
-  } else {
+  if (segments.length) {
+    const rootLi = document.createElement('li');
     rootLi.className = 'breadcrumb-item';
-    const link = document.createElement('a');
-    link.href = '#';
-    link.textContent = 'root';
-    link.dataset.prefix = 'input/';
-    rootLi.appendChild(link);
+    const rootLink = document.createElement('a');
+    rootLink.href = '#';
+    rootLink.textContent = 'root';
+    rootLink.dataset.prefix = INPUT_ROOT;
+    rootLi.appendChild(rootLink);
+    ol.appendChild(rootLi);
+  } else {
+    const rootOnly = document.createElement('li');
+    rootOnly.className = 'breadcrumb-item active';
+    rootOnly.textContent = 'root';
+    ol.appendChild(rootOnly);
   }
-  ol.appendChild(rootLi);
 
-  let cumulative = 'input';
+  let cumulative = '';
   segments.forEach((segment, index) => {
-    if (segment === 'input') return;
     cumulative = cumulative ? `${cumulative}/${segment}` : segment;
     const li = document.createElement('li');
-    if (index === segments.length - 1) {
+    const isLast = index === segments.length - 1;
+    if (isLast) {
       li.className = 'breadcrumb-item active';
       li.textContent = formatSegmentLabel(segment);
     } else {
@@ -250,7 +291,7 @@ function renderList(items) {
         </div>
       </td>
       <td></td>
-      <td class="text-end"></td>
+      <td></td>
       <td></td>
       <td></td>
     `;
@@ -278,9 +319,22 @@ function renderList(items) {
           </div>
         </td>
         <td class="text-muted">Folder</td>
-        <td class="text-end"></td>
         <td></td>
         <td></td>
+        <td class="text-end">
+          <div class="d-inline-flex gap-2 justify-content-end">
+            <div class="btn-group" role="group">
+              <button class="btn btn-soft btn-sm dropdown-toggle manage-btn" data-bs-toggle="dropdown" type="button">
+                Manage
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li><button class="dropdown-item rename-action" data-name="${escapeAttr(item.name)}" data-kind="folder" data-display="${escapeAttr(item.displayName)}" type="button">Rename</button></li>
+                <li><hr class="dropdown-divider" /></li>
+                <li><button class="dropdown-item text-danger delete-action" data-name="${escapeAttr(item.name)}" data-kind="folder" data-display="${escapeAttr(item.displayName)}" type="button">Delete</button></li>
+              </ul>
+            </div>
+          </div>
+        </td>
       `;
     } else {
       const iconInfo = getFileIconInfo(item.name);
@@ -305,6 +359,16 @@ function renderList(items) {
             <a class="btn btn-soft btn-sm" data-download="true" href="${API_BASE}/output/download?blob=${encodeURIComponent(item.name)}" download>
               Download
             </a>
+            <div class="btn-group" role="group">
+              <button class="btn btn-soft btn-sm dropdown-toggle manage-btn" data-bs-toggle="dropdown" type="button">
+                Manage
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li><button class="dropdown-item rename-action" data-name="${escapeAttr(item.name)}" data-kind="file" data-display="${escapeAttr(item.displayName)}" type="button">Rename</button></li>
+                <li><hr class="dropdown-divider" /></li>
+                <li><button class="dropdown-item text-danger delete-action" data-name="${escapeAttr(item.name)}" data-kind="file" data-display="${escapeAttr(item.displayName)}" type="button">Delete</button></li>
+              </ul>
+            </div>
           </div>
         </td>
       `;
@@ -460,7 +524,7 @@ async function loadList() {
       ...item,
       displayName: item.kind === 'folder'
         ? item.displayName
-        : item.name.replace(/^input\//, ''),
+        : formatRelativePath(item.name) || item.name,
     })) : [];
     applyFilters({ resetPage: true });
     updateSortIndicators();
@@ -489,7 +553,8 @@ async function previewBlob(name) {
       throw new Error('Unable to preview file');
     }
     const contentType = response.headers.get('content-type') || 'text/plain';
-    previewModalTitle.textContent = `Preview • ${name.replace(/^input\//, '')}`;
+    const relativeName = formatRelativePath(name) || name;
+    previewModalTitle.textContent = `Preview • ${relativeName}`;
     const text = await response.text();
     const copyValue = renderPreview(text, contentType);
     lastPreviewText = typeof copyValue === 'string' ? copyValue : text;
@@ -509,7 +574,8 @@ async function previewBlob(name) {
 }
 
 function setCurrentPrefix(prefix) {
-  currentPrefix = normalisePrefix(prefix || 'input/');
+  const resolved = prefix ? normalisePrefix(prefix) : INPUT_ROOT;
+  currentPrefix = resolved || INPUT_ROOT;
   renderBreadcrumb();
   updateCurrentPathLabel();
 }
@@ -537,35 +603,34 @@ function populateSelect(selectEl, files, placeholder) {
   }
 }
 
-function tryApplyDefaults() {
-  const fallback = allFilesFlat[0]?.name ?? '';
-  const fileDefault = allFilesFlat.find((item) => item.name.endsWith(DEFAULT_FILE_NAMES.file))?.name || fallback;
-  const configDefault = allFilesFlat.find((item) => item.name.endsWith(DEFAULT_FILE_NAMES.config))?.name || fallback;
-  const sourceDefault = allFilesFlat.find((item) => item.name.endsWith(DEFAULT_FILE_NAMES.sourceMappingPrompt))?.name || fallback;
-  const selectDefault = allFilesFlat.find((item) => item.name.endsWith(DEFAULT_FILE_NAMES.selectMappingPrompt))?.name || fallback;
-
-  if (fileSelect && fileDefault) fileSelect.value = fileDefault;
-  if (configSelect && configDefault) configSelect.value = configDefault;
-  if (sourcePromptSelect && sourceDefault) sourcePromptSelect.value = sourceDefault;
-  if (selectPromptSelect && selectDefault) selectPromptSelect.value = selectDefault;
-
-  targetTypeSelect.value = 'Postgres';
-  targetEnvSelect.value = 'DEV';
-  mockRowCountInput.value = '200';
-  autoTeardownSelect.value = 'false';
-  generateDdlSelect.value = 'true';
+function applyParameterDefaults() {
+  if (targetTypeSelect && targetTypeSelect.querySelector('option[value="Postgres"]')) {
+    targetTypeSelect.value = 'Postgres';
+  }
+  if (targetEnvSelect && targetEnvSelect.querySelector('option[value="DEV"]')) {
+    targetEnvSelect.value = 'DEV';
+  }
+  if (mockRowCountInput && !mockRowCountInput.value) {
+    mockRowCountInput.value = '200';
+  }
+  if (autoTeardownSelect && autoTeardownSelect.querySelector('option[value="false"]')) {
+    autoTeardownSelect.value = 'false';
+  }
+  if (generateDdlSelect && generateDdlSelect.querySelector('option[value="true"]')) {
+    generateDdlSelect.value = 'true';
+  }
 }
 
 async function loadFlatFiles() {
   try {
-    const files = await apiFetch('/files/list?prefix=input/');
+    const files = await apiFetch(`/files/list?prefix=${encodeURIComponent(INPUT_ROOT)}`);
     allFilesFlat = Array.isArray(files) ? files : [];
     populateSelect(fileSelect, allFilesFlat, 'Select source file');
     populateSelect(configSelect, allFilesFlat, 'Select config file');
     populateSelect(sourcePromptSelect, allFilesFlat, 'Select source prompt');
     populateSelect(selectPromptSelect, allFilesFlat, 'Select select prompt');
     if (!hasInitialisedParams) {
-      tryApplyDefaults();
+      applyParameterDefaults();
       hasInitialisedParams = true;
     }
     updateParametersPreview();
@@ -631,7 +696,7 @@ async function createFolder() {
     folderNameInput.value = '';
     await loadList();
     if (result?.folder) {
-      showAlert(`Folder created: ${result.folder}`, 'success');
+      showAlert(`Folder created: ${formatFriendlyPath(result.folder)}`, 'success');
     }
   } catch (error) {
     showAlert(error.message || 'Failed to create folder');
@@ -663,7 +728,7 @@ async function uploadFile() {
     if (!response.ok) {
       throw new Error(data?.message || 'Upload failed');
     }
-    showAlert(`Uploaded ${data.fileName}`, 'success');
+    showAlert(`Uploaded ${formatFriendlyPath(data.fileName)}`, 'success');
     if (uploadInput) uploadInput.value = '';
     await loadList();
     await loadFlatFiles();
@@ -708,7 +773,12 @@ async function triggerLogicApp() {
 
 function resetParameters() {
   hasInitialisedParams = true;
-  tryApplyDefaults();
+  [fileSelect, configSelect, sourcePromptSelect, selectPromptSelect].forEach((selectEl) => {
+    if (selectEl) {
+      selectEl.value = '';
+    }
+  });
+  applyParameterDefaults();
   updateParametersPreview();
 }
 
@@ -767,7 +837,7 @@ function attachEventListeners() {
       const link = event.target.closest('a[data-prefix]');
       if (!link) return;
       event.preventDefault();
-      setCurrentPrefix(link.dataset.prefix ?? 'input/');
+      setCurrentPrefix(link.dataset.prefix ?? INPUT_ROOT);
       loadList();
       resetPreview();
     });
@@ -790,6 +860,36 @@ function attachEventListeners() {
           previewBlob(name).then(() => {
             bootstrapModal?.show();
           });
+        }
+        return;
+      }
+
+      const renameButton = event.target.closest('.rename-action');
+      if (renameButton) {
+        const path = renameButton.getAttribute('data-name');
+        const kind = renameButton.getAttribute('data-kind');
+        const display = renameButton.getAttribute('data-display') || '';
+        if (path && kind) {
+          renameContext = { path, kind };
+          if (renameNameInput) {
+            renameNameInput.value = display;
+          }
+          renameModal?.show();
+        }
+        return;
+      }
+
+      const deleteButton = event.target.closest('.delete-action');
+      if (deleteButton) {
+        const path = deleteButton.getAttribute('data-name');
+        const kind = deleteButton.getAttribute('data-kind');
+        const display = deleteButton.getAttribute('data-display') || '';
+        if (path && kind) {
+          deleteContext = { path, kind };
+          if (deleteTargetName) {
+            deleteTargetName.textContent = display || path.split('/').pop() || path;
+          }
+          deleteModal?.show();
         }
         return;
       }
@@ -842,6 +942,14 @@ function attachEventListeners() {
     uploadBtn.addEventListener('click', uploadFile);
   }
 
+  if (renameConfirmBtn) {
+    renameConfirmBtn.addEventListener('click', renameItem);
+  }
+
+  if (deleteConfirmBtn) {
+    deleteConfirmBtn.addEventListener('click', deleteItem);
+  }
+
   [fileSelect, configSelect, sourcePromptSelect, selectPromptSelect, targetTypeSelect, targetEnvSelect, mockRowCountInput, autoTeardownSelect, generateDdlSelect]
     .forEach((el) => {
       if (!el) return;
@@ -866,14 +974,106 @@ function attachEventListeners() {
   }
 }
 
+async function renameItem() {
+  if (!renameContext) {
+    showAlert('Nothing to rename', 'warning');
+    return;
+  }
+  const newName = renameNameInput?.value.trim();
+  if (!newName) {
+    showAlert('Please provide a new name', 'warning');
+    return;
+  }
+  try {
+    const response = await apiFetch('/files/rename', {
+      method: 'POST',
+      body: JSON.stringify({ path: renameContext.path, newName }),
+    });
+    renameModal?.hide();
+    const newPath = response?.path;
+    if (renameContext.kind === 'folder' && typeof newPath === 'string') {
+      const oldPrefix = normalisePrefix(renameContext.path);
+      const nextPrefix = normalisePrefix(newPath);
+      if (currentPrefix.startsWith(oldPrefix)) {
+        const suffix = currentPrefix.slice(oldPrefix.length);
+        setCurrentPrefix(`${nextPrefix}${suffix}`);
+      }
+    } else if (renameContext.kind === 'file' && typeof newPath === 'string') {
+      [fileSelect, configSelect, sourcePromptSelect, selectPromptSelect].forEach((selectEl) => {
+        if (selectEl && selectEl.value === renameContext.path) {
+          selectEl.value = newPath;
+        }
+      });
+      updateParametersPreview();
+    }
+    showAlert('Item renamed successfully', 'success');
+    await loadList();
+    await loadFlatFiles();
+    resetPreview();
+  } catch (error) {
+    showAlert(error.message || 'Failed to rename item');
+  } finally {
+    renameContext = null;
+  }
+}
+
+async function deleteItem() {
+  if (!deleteContext) {
+    showAlert('Nothing to delete', 'warning');
+    return;
+  }
+  try {
+    await apiFetch('/files/delete', {
+      method: 'POST',
+      body: JSON.stringify({ path: deleteContext.path }),
+    });
+    deleteModal?.hide();
+    if (deleteContext.kind === 'folder') {
+      const targetPrefix = normalisePrefix(deleteContext.path);
+      if (currentPrefix.startsWith(targetPrefix)) {
+        setCurrentPrefix(getParentPrefix(targetPrefix));
+      }
+    } else if (deleteContext.kind === 'file') {
+      [fileSelect, configSelect, sourcePromptSelect, selectPromptSelect].forEach((selectEl) => {
+        if (selectEl && selectEl.value === deleteContext.path) {
+          selectEl.value = '';
+        }
+      });
+      updateParametersPreview();
+    }
+    resetPreview();
+    showAlert('Item deleted successfully', 'success');
+    await loadList();
+    await loadFlatFiles();
+  } catch (error) {
+    showAlert(error.message || 'Failed to delete item');
+  } finally {
+    deleteContext = null;
+  }
+}
+
 (async () => {
   try {
     await ensureHealth();
     if (window.bootstrap) {
       bootstrapModal = new window.bootstrap.Modal(previewModalEl);
       folderModal = new window.bootstrap.Modal(createFolderModalEl);
+      renameModal = new window.bootstrap.Modal(renameModalEl);
+      deleteModal = new window.bootstrap.Modal(deleteModalEl);
+      renameModalEl?.addEventListener('hidden.bs.modal', () => {
+        renameContext = null;
+        if (renameNameInput) {
+          renameNameInput.value = '';
+        }
+      });
+      deleteModalEl?.addEventListener('hidden.bs.modal', () => {
+        deleteContext = null;
+        if (deleteTargetName) {
+          deleteTargetName.textContent = '';
+        }
+      });
     }
-    setCurrentPrefix('input/');
+    setCurrentPrefix(INPUT_ROOT);
     renderBreadcrumb();
     updateCurrentPathLabel();
     await Promise.all([loadList(), loadFlatFiles()]);

@@ -7,6 +7,8 @@ import {
   uploadToBlob,
   buildBlobSas,
   createFolderBlob,
+  deleteBlobPath,
+  renameBlobPath,
 } from '../services/blobService.js';
 
 const MAX_FILE_SIZE = 200 * 1024 * 1024;
@@ -19,22 +21,31 @@ function sanitizeName(original: string): string {
 
 export const filesRouter = Router();
 
-function normaliseTargetPath(raw?: string): string {
-  const base = appConfig.inputPrefix;
+function ensureWithinInput(raw?: string): string {
+  const base = appConfig.inputPrefix.endsWith('/') ? appConfig.inputPrefix : `${appConfig.inputPrefix}/`;
+  const baseNoSlash = base.replace(/\/$/, '');
   if (!raw || typeof raw !== 'string') {
     return base;
   }
-  const trimmed = raw.trim().replace(/\\/g, '/');
-  const segments = trimmed
-    .split('/')
-    .filter((segment) => segment && segment !== '.' && segment !== '..');
-  const rebuilt = segments.join('/');
-  const prefixed = rebuilt.startsWith(base) ? rebuilt : `${base}${rebuilt.replace(/^\//, '')}`;
-  const normalised = prefixed.endsWith('/') ? prefixed : `${prefixed}/`;
-  if (!normalised.startsWith(base)) {
+  let value = raw.trim().replace(/\\/g, '/');
+  if (!value) {
     return base;
   }
-  return normalised;
+  value = value.replace(/\/{2,}/g, '/');
+  if (value.startsWith(base)) {
+    return value;
+  }
+  if (value.startsWith(baseNoSlash)) {
+    const remainder = value.slice(baseNoSlash.length).replace(/^\//, '');
+    return remainder ? `${base}${remainder}` : base;
+  }
+  const stripped = value.replace(/^\/+/, '');
+  return `${base}${stripped}`;
+}
+
+function normaliseTargetPath(raw?: string): string {
+  const within = ensureWithinInput(raw);
+  return within.endsWith('/') ? within : `${within}/`;
 }
 
 filesRouter.post('/upload', upload.single('file'), async (req, res, next) => {
@@ -91,6 +102,71 @@ filesRouter.post('/folder', async (req, res, next) => {
     const folderPath = `${parent}${safe}`;
     await createFolderBlob(folderPath);
     res.json({ ok: true, folder: `${folderPath}/` });
+  } catch (error) {
+    next(error);
+  }
+});
+
+filesRouter.post('/rename', async (req, res, next) => {
+  try {
+    const rawPath = typeof req.body?.path === 'string' ? req.body.path : '';
+    const rawName = typeof req.body?.newName === 'string' ? req.body.newName.trim() : '';
+    if (!rawPath) {
+      return res.status(400).json({ ok: false, message: 'Path is required' });
+    }
+    if (!rawName) {
+      return res.status(400).json({ ok: false, message: 'New name is required' });
+    }
+    const safeName = sanitizeName(rawName);
+    if (!safeName) {
+      return res.status(400).json({ ok: false, message: 'New name is invalid' });
+    }
+    const isFolder = rawPath.endsWith('/');
+    const sourcePath = isFolder ? normaliseTargetPath(rawPath) : ensureWithinInput(rawPath);
+    if (sourcePath === appConfig.inputPrefix) {
+      return res.status(400).json({ ok: false, message: 'Cannot rename the root input directory' });
+    }
+    const parentPath = (() => {
+      if (isFolder) {
+        const trimmed = sourcePath.replace(/\/$/, '');
+        const lastSlash = trimmed.lastIndexOf('/');
+        if (lastSlash === -1) {
+          return appConfig.inputPrefix;
+        }
+        return `${trimmed.slice(0, lastSlash + 1)}`;
+      }
+      const lastSlash = sourcePath.lastIndexOf('/');
+      if (lastSlash === -1) {
+        return appConfig.inputPrefix;
+      }
+      return sourcePath.slice(0, lastSlash + 1);
+    })();
+    const targetPath = isFolder
+      ? `${parentPath}${safeName}/`
+      : `${parentPath}${safeName}`;
+    if (targetPath === sourcePath) {
+      return res.json({ ok: true, path: targetPath });
+    }
+    await renameBlobPath(sourcePath, targetPath);
+    res.json({ ok: true, path: targetPath });
+  } catch (error) {
+    next(error);
+  }
+});
+
+filesRouter.post('/delete', async (req, res, next) => {
+  try {
+    const rawPath = typeof req.body?.path === 'string' ? req.body.path : '';
+    if (!rawPath) {
+      return res.status(400).json({ ok: false, message: 'Path is required' });
+    }
+    const isFolder = rawPath.endsWith('/');
+    const targetPath = isFolder ? normaliseTargetPath(rawPath) : ensureWithinInput(rawPath);
+    if (targetPath === appConfig.inputPrefix) {
+      return res.status(400).json({ ok: false, message: 'Cannot delete the root input directory' });
+    }
+    await deleteBlobPath(targetPath);
+    res.json({ ok: true });
   } catch (error) {
     next(error);
   }

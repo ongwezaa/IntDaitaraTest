@@ -37,6 +37,48 @@ function showAlert(message, type = 'danger') {
   alertContainer?.appendChild(wrapper);
 }
 
+function extractBaseName(value = '') {
+  const trimmed = value.replace(/\/$/, '');
+  const parts = trimmed.split('/').filter(Boolean);
+  return parts.pop() || trimmed;
+}
+
+function formatParameterSummary(parameters = {}) {
+  if (!parameters || typeof parameters !== 'object') {
+    return '<span class="text-muted">-</span>';
+  }
+  const fileKeys = ['file', 'config', 'sourceMappingPrompt', 'selectMappingPrompt'];
+  const chips = fileKeys
+    .map((key) => {
+      const value = parameters[key];
+      if (typeof value !== 'string' || !value.trim()) return '';
+      return `<span class="param-chip">${escapeHtml(extractBaseName(value.trim()))}</span>`;
+    })
+    .filter(Boolean);
+  const metaParts = [];
+  if (typeof parameters.target_type === 'string' && parameters.target_type.trim()) {
+    metaParts.push(`type: ${parameters.target_type}`);
+  }
+  if (typeof parameters.target_env === 'string' && parameters.target_env.trim()) {
+    metaParts.push(`env: ${parameters.target_env}`);
+  }
+  if (Number.isFinite(parameters.mock_row_count)) {
+    metaParts.push(`rows: ${parameters.mock_row_count}`);
+  }
+  if (typeof parameters.generate_ddl === 'boolean') {
+    metaParts.push(`ddl: ${parameters.generate_ddl ? 'yes' : 'no'}`);
+  }
+  if (typeof parameters.auto_teardown === 'boolean') {
+    metaParts.push(`teardown: ${parameters.auto_teardown ? 'auto' : 'manual'}`);
+  }
+  const chipsHtml = chips.length ? `<div class="d-flex flex-wrap gap-2 param-chip-group">${chips.join('')}</div>` : '';
+  const metaHtml = metaParts.length ? `<div class="text-muted small">${escapeHtml(metaParts.join(' • '))}</div>` : '';
+  if (!chipsHtml && !metaHtml) {
+    return '<span class="text-muted">-</span>';
+  }
+  return `<div class="d-flex flex-column gap-1">${chipsHtml}${metaHtml}</div>`;
+}
+
 function formatDate(value) {
   if (!value) return '-';
   const date = new Date(value);
@@ -97,6 +139,10 @@ function sortRuns(runs) {
         valueA = (a.fileName || '').toLowerCase();
         valueB = (b.fileName || '').toLowerCase();
         break;
+      case 'parameters':
+        valueA = JSON.stringify(a.parameters || {}).toLowerCase();
+        valueB = JSON.stringify(b.parameters || {}).toLowerCase();
+        break;
       case 'targetEnv':
         valueA = (a.parameters?.target_env || '').toLowerCase();
         valueB = (b.parameters?.target_env || '').toLowerCase();
@@ -121,6 +167,7 @@ function applyFilters({ resetPage = false } = {}) {
       run.fileName,
       run.parameters?.target_env,
       run.parameters?.target_type,
+      JSON.stringify(run.parameters || {}),
     ]
       .filter(Boolean)
       .join(' ')
@@ -154,13 +201,14 @@ function renderRows(runs) {
   tableBody.innerHTML = '';
   if (!runs.length) {
     const row = document.createElement('tr');
-    row.innerHTML = '<td colspan="7" class="text-center text-muted py-4">No runs yet.</td>';
+    row.innerHTML = '<td colspan="8" class="text-center text-muted py-4">No runs yet.</td>';
     tableBody.appendChild(row);
     return;
   }
   runs.forEach((run) => {
     const row = document.createElement('tr');
     const targetEnv = run.parameters?.target_env ?? '-';
+    const parameterSummary = formatParameterSummary(run.parameters);
     const outputLink = run.status === 'Succeeded' && run.outputPrefix
       ? `<a class="btn btn-soft btn-sm" href="/output?prefix=${encodeURIComponent(run.outputPrefix)}">Outputs</a>`
       : '';
@@ -168,6 +216,7 @@ function renderRows(runs) {
       <td>${escapeHtml(formatDate(run.createdAt))}</td>
       <td>${escapeHtml(run.id)}</td>
       <td>${escapeHtml(run.fileName || '-')}</td>
+      <td>${parameterSummary}</td>
       <td>${escapeHtml(targetEnv)}</td>
       <td>${statusBadge(run.status)}</td>
       <td>${escapeHtml(formatDate(run.updatedAt))}</td>

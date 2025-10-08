@@ -22,10 +22,15 @@ outputRouter.get('/preview', async (req, res, next) => {
       return res.status(400).json({ ok: false, message: 'blob parameter is required' });
     }
     const meta = await getBlobMeta(blob);
-    if (!isPreviewable(meta.contentType, meta.contentLength)) {
+    const lowerPath = blob.toLowerCase();
+    const extension = lowerPath.includes('.') ? lowerPath.slice(lowerPath.lastIndexOf('.') + 1) : '';
+    const textExtensions = new Set(['sql', 'txt', 'json', 'csv', 'tsv', 'xml', 'log']);
+    const sizeLimit = 10 * 1024 * 1024;
+    const allowByExtension = textExtensions.has(extension) && meta.contentLength <= sizeLimit;
+    if (!isPreviewable(meta.contentType, meta.contentLength, sizeLimit) && !allowByExtension) {
       return res.status(413).json({ ok: false, message: 'Blob too large or not previewable' });
     }
-    const text = await downloadTextBlob(blob, 5 * 1024 * 1024);
+    const text = await downloadTextBlob(blob, sizeLimit);
     if (!text) {
       return res.status(413).json({ ok: false, message: 'Blob too large to preview' });
     }

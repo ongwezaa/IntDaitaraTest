@@ -41,6 +41,62 @@ export async function createFolderBlob(folderPath: string): Promise<void> {
   });
 }
 
+async function copyBlob(sourcePath: string, targetPath: string): Promise<void> {
+  const container = getContainer();
+  const sourceClient = container.getBlobClient(sourcePath);
+  const exists = await sourceClient.exists();
+  if (!exists) {
+    throw new Error('Source blob not found');
+  }
+  const targetClient = container.getBlockBlobClient(targetPath);
+  const sasUrl = buildBlobSas(sourcePath, 'r', 10);
+  await targetClient.syncCopyFromURL(sasUrl);
+  await sourceClient.delete();
+}
+
+export async function deleteBlobPath(path: string): Promise<void> {
+  const container = getContainer();
+  if (path.endsWith('/')) {
+    const prefix = normalisePrefix(path);
+    for await (const blob of container.listBlobsFlat({ prefix })) {
+      if (!blob.name) continue;
+      const client = container.getBlobClient(blob.name);
+      await client.deleteIfExists();
+    }
+    const placeholderClient = container.getBlobClient(`${prefix}${FOLDER_PLACEHOLDER}`);
+    await placeholderClient.deleteIfExists();
+    return;
+  }
+  const blobClient = container.getBlobClient(path);
+  await blobClient.deleteIfExists();
+}
+
+export async function renameBlobPath(sourcePath: string, targetPath: string): Promise<void> {
+  const container = getContainer();
+  if (sourcePath.endsWith('/') && targetPath.endsWith('/')) {
+    const sourcePrefix = normalisePrefix(sourcePath);
+    const targetPrefix = normalisePrefix(targetPath);
+    if (targetPrefix.startsWith(sourcePrefix)) {
+      throw new Error('Cannot move folder into its own child');
+    }
+    const items: string[] = [];
+    for await (const blob of container.listBlobsFlat({ prefix: sourcePrefix })) {
+      if (!blob.name) continue;
+      items.push(blob.name);
+    }
+    for (const name of items) {
+      const relative = name.slice(sourcePrefix.length);
+      const destination = `${targetPrefix}${relative}`;
+      await copyBlob(name, destination);
+    }
+    return;
+  }
+  if (sourcePath.endsWith('/') !== targetPath.endsWith('/')) {
+    throw new Error('Cannot change between folder and file paths');
+  }
+  await copyBlob(sourcePath, targetPath);
+}
+
 interface ListOptions {
   hierarchical?: boolean;
 }
