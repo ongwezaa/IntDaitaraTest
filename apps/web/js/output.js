@@ -36,7 +36,7 @@ function normalisePrefix(value) {
 }
 
 function formatSize(bytes) {
-  if (bytes === undefined || bytes === null) return '-';
+  if (bytes === undefined || bytes === null) return '';
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -126,10 +126,10 @@ function renderList(items) {
           <span class="fw-semibold text-body-secondary">Back</span>
         </div>
       </td>
-      <td class="text-muted small">Folder</td>
-      <td class="text-end text-muted small">-</td>
-      <td class="text-muted small">-</td>
-      <td class="text-end text-muted small">-</td>
+      <td class="text-muted small"></td>
+      <td class="text-end text-muted small"></td>
+      <td class="text-muted small"></td>
+      <td class="text-end text-muted small"></td>
     `;
     fileList.appendChild(row);
   }
@@ -150,22 +150,22 @@ function renderList(items) {
       row.innerHTML = `
         <td>
           <div class="d-flex align-items-center gap-2">
-            <span class="item-icon folder" aria-hidden="true"><i class="bi bi-folder2"></i></span>
+            <span class="item-icon folder" aria-hidden="true"><i class="bi bi-folder-fill"></i></span>
             <span class="fw-semibold">${item.displayName}</span>
           </div>
         </td>
         <td class="text-muted">Folder</td>
-        <td class="text-end text-muted">-</td>
-        <td class="text-muted">-</td>
-        <td class="text-end text-muted small">-</td>
+        <td class="text-end text-muted"></td>
+        <td class="text-muted"></td>
+        <td class="text-end text-muted small"></td>
       `;
     } else {
-      const timestamp = item.lastModified ? new Date(item.lastModified).toLocaleString() : '-';
+      const timestamp = item.lastModified ? new Date(item.lastModified).toLocaleString() : '';
       row.dataset.path = item.name;
       row.innerHTML = `
         <td>
           <div class="d-flex align-items-center gap-2">
-            <span class="item-icon file" aria-hidden="true"><i class="bi bi-file-earmark-text"></i></span>
+            <span class="item-icon file" aria-hidden="true"><i class="bi bi-file-earmark"></i></span>
             <span class="fw-semibold">${item.displayName}</span>
           </div>
         </td>
@@ -175,12 +175,10 @@ function renderList(items) {
         <td class="text-end">
           <div class="d-inline-flex flex-wrap gap-2 justify-content-end">
             <button class="btn btn-soft btn-sm preview-btn" data-name="${item.name}" type="button">
-              <i class="bi bi-eye"></i>
-              <span>Preview</span>
+              Preview
             </button>
             <a class="btn btn-soft btn-sm" data-download="true" href="${API_BASE}/output/download?blob=${encodeURIComponent(item.name)}" download>
-              <i class="bi bi-download"></i>
-              <span>Download</span>
+              Download
             </a>
           </div>
         </td>
