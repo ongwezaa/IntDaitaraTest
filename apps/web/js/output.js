@@ -20,8 +20,9 @@ let activePreview = { name: '', contentType: '' };
 let allItems = [];
 let filteredItems = [];
 let currentPage = 1;
-let sortKey = 'displayName';
-let sortDirection = 'asc';
+let sortKey = 'lastModified';
+let sortDirection = 'desc';
+let sortOverrideActive = false;
 let searchDebounce;
 let lastPreviewText = '';
 let listRequestToken = 0;
@@ -465,6 +466,9 @@ async function loadList() {
     }
     const nextItems = Array.isArray(items) ? items : [];
     allItems = nextItems;
+    if (!sortOverrideActive) {
+      applyDefaultSort(allItems);
+    }
     applyFilters({ resetPage: true });
     updateSortIndicators();
   } catch (error) {
@@ -515,8 +519,25 @@ async function previewBlob(name) {
 
 function setCurrentPrefix(prefix) {
   currentPrefix = normalisePrefix(prefix);
+  sortOverrideActive = false;
   renderBreadcrumb();
   updateUrl();
+}
+
+function applyDefaultSort(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    sortKey = 'lastModified';
+    sortDirection = 'desc';
+    return;
+  }
+  const hasFolders = items.some((item) => item.kind === 'folder');
+  if (hasFolders) {
+    sortKey = 'displayName';
+    sortDirection = 'asc';
+  } else {
+    sortKey = 'lastModified';
+    sortDirection = 'desc';
+  }
 }
 
 resetPreview();
@@ -559,6 +580,7 @@ sortableHeaders.forEach((header) => {
       sortKey = key;
       sortDirection = key === 'size' || key === 'lastModified' ? 'desc' : 'asc';
     }
+    sortOverrideActive = true;
     updateSortIndicators();
     applyFilters();
   });

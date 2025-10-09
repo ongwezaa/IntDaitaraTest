@@ -55,8 +55,9 @@ let currentPrefix = INPUT_ROOT;
 let allItems = [];
 let filteredItems = [];
 let currentPage = 1;
-let sortKey = 'displayName';
-let sortDirection = 'asc';
+let sortKey = 'lastModified';
+let sortDirection = 'desc';
+let sortOverrideActive = false;
 let searchDebounce;
 let lastPreviewText = '';
 let allFilesFlat = [];
@@ -542,6 +543,9 @@ async function loadList() {
           };
         })
       : [];
+    if (!sortOverrideActive) {
+      applyDefaultSort(allItems);
+    }
     applyFilters({ resetPage: true });
     updateSortIndicators();
   } catch (error) {
@@ -591,7 +595,24 @@ async function previewBlob(name) {
 function setCurrentPrefix(prefix) {
   const resolved = prefix ? normalisePrefix(prefix) : INPUT_ROOT;
   currentPrefix = resolved || INPUT_ROOT;
+  sortOverrideActive = false;
   renderBreadcrumb();
+}
+
+function applyDefaultSort(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    sortKey = 'lastModified';
+    sortDirection = 'desc';
+    return;
+  }
+  const hasFolders = items.some((item) => item.kind === 'folder');
+  if (hasFolders) {
+    sortKey = 'displayName';
+    sortDirection = 'asc';
+  } else {
+    sortKey = 'lastModified';
+    sortDirection = 'desc';
+  }
 }
 
 function populateSelect(selectEl, files, placeholder) {
@@ -665,10 +686,10 @@ function updateParametersPreview() {
     sourceMappingPrompt: sourcePromptSelect?.value || '',
     selectMappingPrompt: selectPromptSelect?.value || '',
     target_type: targetTypeSelect?.value || 'Postgres',
-    mock_row_count: Number(mockRowCountInput?.value) || 200,
-    auto_teardown: getBoolean(autoTeardownSelect),
     target_env: targetEnvSelect?.value || 'DEV',
     generate_ddl: getBoolean(generateDdlSelect),
+    mock_row_count: Number(mockRowCountInput?.value) || 200,
+    auto_teardown: getBoolean(autoTeardownSelect),
   };
   parametersPreview.value = JSON.stringify(payload, null, 2);
 }
@@ -841,6 +862,7 @@ function attachEventListeners() {
         sortKey = key;
         sortDirection = key === 'size' || key === 'lastModified' ? 'desc' : 'asc';
       }
+      sortOverrideActive = true;
       updateSortIndicators();
       applyFilters();
     });
