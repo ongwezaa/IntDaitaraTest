@@ -6,6 +6,59 @@ body {
   background: linear-gradient(135deg, #4338ca 0%, #1d4ed8 55%, #0f172a 100%);
 }
 
+.header-nav-wrapper {
+  width: 100%;
+  align-items: flex-start;
+}
+
+.header-nav-wrapper .navbar-nav {
+  width: 100%;
+  margin-bottom: 0;
+  gap: 0.25rem;
+}
+
+.header-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: rgba(248, 250, 252, 0.85);
+}
+
+.version-badge {
+  background: rgba(15, 23, 42, 0.35);
+  color: #e2e8f0;
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.25);
+}
+
+.space-orbit {
+  width: 1.75rem;
+  height: 1.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  animation: orbit-spin 12s linear infinite;
+}
+
+.space-orbit svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 2px 4px rgba(15, 23, 42, 0.35));
+}
+
+@keyframes orbit-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .pastel-header .navbar-brand {
   font-weight: 600;
   color: #f8fafc;
@@ -34,6 +87,18 @@ body {
   background-color: rgba(255, 255, 255, 0.3);
   color: #ffffff;
   box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.25);
+}
+
+@media (min-width: 992px) {
+  .header-nav-wrapper {
+    width: auto;
+    align-items: center;
+  }
+
+  .header-nav-wrapper .navbar-nav {
+    width: auto;
+    margin-left: auto;
+  }
 }
 
 .pastel-header .navbar-toggler {
@@ -72,10 +137,11 @@ main {
 
 .landing-hero,
 .landing-blank {
-  background: linear-gradient(135deg, rgba(79, 70, 229, 0.12) 0%, rgba(59, 130, 246, 0.12) 100%);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.04) 0%, rgba(59, 130, 246, 0.1) 50%, rgba(99, 102, 241, 0.14) 100%);
   border-radius: 1.75rem;
-  border: 1px solid rgba(59, 130, 246, 0.25);
-  backdrop-filter: blur(6px);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
 }
 
 .text-gradient {
