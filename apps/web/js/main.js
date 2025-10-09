@@ -530,12 +530,18 @@ function renderPreview(content, contentType) {
 async function loadList() {
   try {
     const items = await apiFetch(`/files/list?prefix=${encodeURIComponent(currentPrefix)}&hierarchical=true`);
-    allItems = Array.isArray(items) ? items.map((item) => ({
-      ...item,
-      displayName: item.kind === 'folder'
-        ? item.displayName
-        : formatRelativePath(item.name) || item.name,
-    })) : [];
+    allItems = Array.isArray(items)
+      ? items.map((item) => {
+          const fallback = formatRelativePath(item.name) || item.name;
+          const friendlyName = typeof item.displayName === 'string' && item.displayName.trim()
+            ? item.displayName
+            : fallback;
+          return {
+            ...item,
+            displayName: friendlyName,
+          };
+        })
+      : [];
     applyFilters({ resetPage: true });
     updateSortIndicators();
   } catch (error) {

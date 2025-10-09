@@ -119,11 +119,21 @@ export async function listBlobs(prefix: string, options: ListOptions = {}): Prom
     if (!item.name) continue;
     if (item.name.endsWith(`/${FOLDER_PLACEHOLDER}`)) {
       const folderName = item.name.slice(0, -FOLDER_PLACEHOLDER.length - 1);
+      if (normalisedPrefix && !folderName.startsWith(normalisedPrefix)) {
+        continue;
+      }
+      const relativeName = normalisedPrefix ? folderName.slice(normalisedPrefix.length) : folderName;
+      if (!relativeName) {
+        continue;
+      }
+      if (relativeName.includes('/')) {
+        continue;
+      }
       const fullPath = `${folderName}/`;
       if (fullPath === normalisedPrefix) {
         continue;
       }
-      const displayName = folderName.split('/').pop() ?? folderName;
+      const displayName = relativeName.split('/').pop() ?? relativeName;
       if (!folderSet.has(fullPath)) {
         folderSet.add(fullPath);
         results.push({
