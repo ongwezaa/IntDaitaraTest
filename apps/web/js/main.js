@@ -935,7 +935,7 @@ async function triggerLogicApp() {
     toggleTriggerLoading(true);
     const run = await apiFetch('/logicapp/trigger', {
       method: 'POST',
-      body: JSON.stringify({ parameters: params }),
+      body: JSON.stringify(params),
     });
     showAlert(`Run created: ${run.id}`, 'success');
   } catch (error) {

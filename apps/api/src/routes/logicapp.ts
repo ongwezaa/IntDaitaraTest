@@ -10,11 +10,13 @@ export function createLogicAppRouter(store: RunStore) {
 
   router.post('/trigger', async (req, res, next) => {
     try {
-      const { parameters } = req.body ?? {};
-      const params = parameters && typeof parameters === 'object' ? (parameters as Record<string, unknown>) : {};
+      const body = req.body ?? {};
+      const params = body && typeof body === 'object' && !Array.isArray(body)
+        ? (body as Record<string, unknown>)
+        : {};
       const fileParam = params.file;
       if (typeof fileParam !== 'string' || !fileParam.trim()) {
-        return res.status(400).json({ ok: false, message: 'parameters.file is required' });
+        return res.status(400).json({ ok: false, message: 'file is required' });
       }
       const fileName = fileParam.trim();
       const runId = ulid();
