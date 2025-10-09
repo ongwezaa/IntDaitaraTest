@@ -64,6 +64,62 @@ let allFilesFlat = [];
 let hasInitialisedParams = false;
 let renameContext = null;
 let deleteContext = null;
+let currentPreviewName = '';
+
+function appendPreviewBlock(text) {
+  if (!previewPane) return;
+  const pre = document.createElement('pre');
+  pre.className = 'preview-block';
+  pre.textContent = text;
+  previewPane.appendChild(pre);
+}
+
+function getSqlDialects(name = '', contentType = '') {
+  const hints = `${name || ''} ${contentType || ''}`.toLowerCase();
+  const dialects = [];
+  const push = (dialect) => {
+    if (dialect && !dialects.includes(dialect)) {
+      dialects.push(dialect);
+    }
+  };
+
+  if (/postgres|redshift|timescale|aurora-postgres/.test(hints)) push('postgresql');
+  if (/mysql|maria|aurora-mysql/.test(hints)) push('mysql');
+  if (/sqlserver|tsql|mssql/.test(hints)) push('tsql');
+  if (/bigquery|bq/.test(hints)) push('bigquery');
+  if (/snowflake/.test(hints)) push('snowflake');
+  if (/spark|databricks/.test(hints)) push('spark');
+  if (/sqlite/.test(hints)) push('sqlite');
+  if (/oracle|plsql/.test(hints)) push('plsql');
+  if (/db2/.test(hints)) push('db2');
+  push('sql');
+
+  return dialects;
+}
+
+function formatSqlContent(text, { name = '', contentType = '' } = {}) {
+  if (!window.sqlFormatter || typeof window.sqlFormatter.format !== 'function') {
+    return text;
+  }
+
+  const candidates = getSqlDialects(name, contentType);
+  for (const language of candidates) {
+    const attempts = [
+      { language, keywordCase: 'upper', tabWidth: 2 },
+      { language },
+    ];
+
+    for (const config of attempts) {
+      try {
+        return window.sqlFormatter.format(text, config);
+      } catch (error) {
+        // try next config
+      }
+    }
+  }
+
+  return text;
+}
 
 function escapeHtml(value = '') {
   return value
@@ -478,20 +534,20 @@ function updateSortIndicators() {
 function renderPreview(content, contentType) {
   if (!previewPane) return;
   previewPane.innerHTML = '';
-  if (contentType.includes('application/json')) {
+  const lowerContentType = (contentType || '').toLowerCase();
+
+  if (lowerContentType.includes('application/json')) {
     try {
       const parsed = JSON.parse(content);
       const formatted = JSON.stringify(parsed, null, 2);
-      const pre = document.createElement('pre');
-      pre.textContent = formatted;
-      previewPane.appendChild(pre);
+      appendPreviewBlock(formatted);
       return formatted;
     } catch {
       // ignore parse errors
     }
   }
 
-  if (contentType.includes('text/csv')) {
+  if (lowerContentType.includes('text/csv')) {
     const rows = content.trim().split(/\r?\n/);
     const table = document.createElement('table');
     table.className = 'table table-striped table-sm';
@@ -508,23 +564,20 @@ function renderPreview(content, contentType) {
     return content;
   }
 
-  if (contentType.includes('sql') || previewModalTitle?.textContent?.toLowerCase().includes('.sql')) {
-    try {
-      if (window.sqlFormatter && typeof window.sqlFormatter.format === 'function') {
-        const formatted = window.sqlFormatter.format(content, { language: 'sql' });
-        const pre = document.createElement('pre');
-        pre.textContent = formatted;
-        previewPane.appendChild(pre);
-        return formatted;
-      }
-    } catch {
-      // ignore formatter errors
-    }
+  if (
+    lowerContentType.includes('sql') ||
+    currentPreviewName.toLowerCase().endsWith('.sql') ||
+    /\.(psql|tsql|ddl)$/i.test(currentPreviewName)
+  ) {
+    const formatted = formatSqlContent(content, {
+      name: currentPreviewName,
+      contentType,
+    });
+    appendPreviewBlock(formatted);
+    return formatted;
   }
 
-  const pre = document.createElement('pre');
-  pre.textContent = content;
-  previewPane.appendChild(pre);
+  appendPreviewBlock(content);
   return content;
 }
 
@@ -555,6 +608,7 @@ async function loadList() {
 
 async function previewBlob(name) {
   if (!previewPane) return;
+  currentPreviewName = name || '';
   previewPane.textContent = 'Loading preview...';
   lastPreviewText = '';
   if (copyPreviewBtn) {

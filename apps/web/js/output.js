@@ -28,6 +28,61 @@ let lastPreviewText = '';
 let listRequestToken = 0;
 const copyButtonDefaultLabel = copyPreviewLabel ? copyPreviewLabel.textContent.trim() : 'Copy';
 
+function appendPreviewBlock(text) {
+  if (!previewPane) return;
+  const pre = document.createElement('pre');
+  pre.className = 'preview-block';
+  pre.textContent = text;
+  previewPane.appendChild(pre);
+}
+
+function getSqlDialects(name = '', contentType = '') {
+  const hints = `${name || ''} ${contentType || ''}`.toLowerCase();
+  const dialects = [];
+  const push = (dialect) => {
+    if (dialect && !dialects.includes(dialect)) {
+      dialects.push(dialect);
+    }
+  };
+
+  if (/postgres|redshift|timescale|aurora-postgres/.test(hints)) push('postgresql');
+  if (/mysql|maria|aurora-mysql/.test(hints)) push('mysql');
+  if (/sqlserver|tsql|mssql/.test(hints)) push('tsql');
+  if (/bigquery|bq/.test(hints)) push('bigquery');
+  if (/snowflake/.test(hints)) push('snowflake');
+  if (/spark|databricks/.test(hints)) push('spark');
+  if (/sqlite/.test(hints)) push('sqlite');
+  if (/oracle|plsql/.test(hints)) push('plsql');
+  if (/db2/.test(hints)) push('db2');
+  push('sql');
+
+  return dialects;
+}
+
+function formatSqlContent(text, { name = '', contentType = '' } = {}) {
+  if (!window.sqlFormatter || typeof window.sqlFormatter.format !== 'function') {
+    return text;
+  }
+
+  const candidates = getSqlDialects(name, contentType);
+  for (const language of candidates) {
+    const attempts = [
+      { language, keywordCase: 'upper', tabWidth: 2 },
+      { language },
+    ];
+
+    for (const config of attempts) {
+      try {
+        return window.sqlFormatter.format(text, config);
+      } catch (error) {
+        // try next config
+      }
+    }
+  }
+
+  return text;
+}
+
 function setCopyButtonLabel(text) {
   if (!copyPreviewBtn) return;
   const labelEl = copyPreviewBtn.querySelector('.btn-copy-label');
@@ -406,20 +461,20 @@ function updateSortIndicators() {
 
 function renderPreview(content, contentType) {
   previewPane.innerHTML = '';
-  if (contentType.includes('application/json')) {
+  const lowerContentType = (contentType || '').toLowerCase();
+
+  if (lowerContentType.includes('application/json')) {
     try {
       const parsed = JSON.parse(content);
       const formatted = JSON.stringify(parsed, null, 2);
-      const pre = document.createElement('pre');
-      pre.textContent = formatted;
-      previewPane.appendChild(pre);
+      appendPreviewBlock(formatted);
       return formatted;
     } catch {
       // fall through
     }
   }
 
-  if (contentType.includes('text/csv')) {
+  if (lowerContentType.includes('text/csv')) {
     const rows = content.trim().split(/\r?\n/);
     const table = document.createElement('table');
     table.className = 'table table-striped table-sm';
@@ -436,23 +491,20 @@ function renderPreview(content, contentType) {
     return content;
   }
 
-  if (contentType.includes('sql') || activePreview.name.toLowerCase().endsWith('.sql')) {
-    try {
-      if (window.sqlFormatter && typeof window.sqlFormatter.format === 'function') {
-        const formatted = window.sqlFormatter.format(content, { language: 'sql' });
-        const pre = document.createElement('pre');
-        pre.textContent = formatted;
-        previewPane.appendChild(pre);
-        return formatted;
-      }
-    } catch {
-      // ignore formatter errors
-    }
+  if (
+    lowerContentType.includes('sql') ||
+    activePreview.name.toLowerCase().endsWith('.sql') ||
+    /\.(psql|tsql|ddl)$/i.test(activePreview.name)
+  ) {
+    const formatted = formatSqlContent(content, {
+      name: activePreview.name,
+      contentType,
+    });
+    appendPreviewBlock(formatted);
+    return formatted;
   }
 
-  const pre = document.createElement('pre');
-  pre.textContent = content;
-  previewPane.appendChild(pre);
+  appendPreviewBlock(content);
   return content;
 }
 
