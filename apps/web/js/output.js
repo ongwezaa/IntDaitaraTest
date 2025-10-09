@@ -1,6 +1,6 @@
 import { API_BASE, apiFetch, ensureHealth } from './config.js';
 
-const OUTPUT_ROOT = 'output/';
+const OUTPUT_ROOT = '';
 
 const fileList = document.getElementById('fileList');
 const searchInput = document.getElementById('searchInput');
@@ -77,10 +77,6 @@ function normalisePrefix(value) {
     return '';
   }
 
-  if (sanitised[0] !== 'output') {
-    return OUTPUT_ROOT;
-  }
-
   return `${sanitised.join('/')}/`;
 }
 
@@ -123,7 +119,7 @@ function canGoUp() {
 
 function updateUrl() {
   const url = new URL(window.location.href);
-  if (currentPrefix && currentPrefix !== OUTPUT_ROOT) {
+  if (currentPrefix) {
     url.searchParams.set('prefix', currentPrefix);
   } else {
     url.searchParams.delete('prefix');
@@ -467,21 +463,7 @@ async function loadList() {
     if (token !== listRequestToken || requestPrefix !== currentPrefix) {
       return;
     }
-    let nextItems = Array.isArray(items) ? items : [];
-    if (currentPrefix === '') {
-      nextItems = nextItems.filter(
-        (item) => item?.kind === 'folder' && normalisePrefix(item.name) === OUTPUT_ROOT,
-      );
-      if (!nextItems.length) {
-        nextItems = [
-          {
-            name: OUTPUT_ROOT,
-            displayName: 'output',
-            kind: 'folder',
-          },
-        ];
-      }
-    }
+    const nextItems = Array.isArray(items) ? items : [];
     allItems = nextItems;
     applyFilters({ resetPage: true });
     updateSortIndicators();
