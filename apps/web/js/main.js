@@ -97,25 +97,110 @@ function getSqlDialects(name = '', contentType = '') {
   return dialects;
 }
 
-function formatSqlContent(text, { name = '', contentType = '' } = {}) {
-  if (!window.sqlFormatter || typeof window.sqlFormatter.format !== 'function') {
+function hasMeaningfulSqlFormatting(original, formatted) {
+  if (typeof formatted !== 'string' || !formatted.trim()) {
+    return false;
+  }
+
+  const originalTrimmed = (original || '').trim();
+  const formattedTrimmed = formatted.trim();
+
+  if (!originalTrimmed) {
+    return !!formattedTrimmed;
+  }
+
+  if (originalTrimmed === formattedTrimmed && !/\n/.test(formattedTrimmed)) {
+    return false;
+  }
+
+  const originalLines = originalTrimmed.split(/\r?\n/).length;
+  const formattedLines = formattedTrimmed.split(/\r?\n/).length;
+  if (formattedLines > originalLines) {
+    return true;
+  }
+
+  return originalTrimmed !== formattedTrimmed;
+}
+
+function basicSqlFallback(text = '') {
+  if (!text || typeof text !== 'string') {
     return text;
   }
 
-  const candidates = getSqlDialects(name, contentType);
-  for (const language of candidates) {
-    const attempts = [
-      { language, keywordCase: 'upper', tabWidth: 2 },
-      { language },
-    ];
+  let working = text.replace(/\s+/g, ' ').trim();
+  if (!working) {
+    return text;
+  }
 
-    for (const config of attempts) {
-      try {
-        return window.sqlFormatter.format(text, config);
-      } catch (error) {
-        // try next config
+  working = working.replace(/^SELECT\s+/i, 'SELECT\n  ');
+
+  const majorBreaks = [
+    'SELECT',
+    'FROM',
+    'WHERE',
+    'GROUP BY',
+    'ORDER BY',
+    'HAVING',
+    'LEFT JOIN',
+    'RIGHT JOIN',
+    'INNER JOIN',
+    'FULL JOIN',
+    'OUTER JOIN',
+    'JOIN',
+    'ON',
+    'UNION',
+    'UNION ALL',
+    'EXCEPT',
+    'INTERSECT',
+    'LIMIT',
+    'OFFSET',
+    'VALUES',
+    'SET',
+    'INSERT INTO',
+    'UPDATE',
+    'DELETE FROM',
+  ];
+
+  for (const keyword of majorBreaks) {
+    const pattern = new RegExp(`\\s+${keyword.replace(/\s+/g, '\\s+')}(?=\\b)`, 'gi');
+    working = working.replace(pattern, (match) => `\n${match.trim()}`);
+  }
+
+  working = working.replace(/,\s*/g, ',\n  ');
+  working = working.replace(/\(\s*/g, ' (\n  ');
+  working = working.replace(/\s*\)/g, '\n)');
+  working = working.replace(/\n{2,}/g, '\n');
+
+  return working.trim();
+}
+
+function formatSqlContent(text, { name = '', contentType = '' } = {}) {
+  let formatted;
+
+  if (window.sqlFormatter && typeof window.sqlFormatter.format === 'function') {
+    const candidates = getSqlDialects(name, contentType);
+    for (const language of candidates) {
+      const attempts = [
+        { language, keywordCase: 'upper', tabWidth: 2 },
+        { language },
+      ];
+
+      for (const config of attempts) {
+        try {
+          const result = window.sqlFormatter.format(text, config);
+          if (hasMeaningfulSqlFormatting(text, result)) {
+            return result;
+          }
+        } catch (error) {
+          // try next config
+        }
       }
     }
+  }
+
+  formatted = basicSqlFallback(text);
+  if (hasMeaningfulSqlFormatting(text, formatted)) {
+    return formatted;
   }
 
   return text;
