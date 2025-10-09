@@ -1,0 +1,18 @@
+const { BlobSASPermissions, ContainerSASPermissions } = require('@azure/storage-blob');
+
+const containerName = containerNameValue || ''; // Ensure containerName is always a string
+const permissions = permissionsValue instanceof BlobSASPermissions || permissionsValue instanceof ContainerSASPermissions ? permissionsValue : undefined; // Ensure permissions is of the correct type
+
+// Rest of the code...
+
+// db.ts
+import Database from "better-sqlite3"; // Type declaration will be added in better-sqlite3.d.ts
+
+// logicapp.ts
+const triggerUrl = triggerUrlValue || ''; // Ensure triggerUrl is always a string
+const response = await axios.post(triggerUrl, payload, {
+    // options...
+});
+
+// better-sqlite3.d.ts
+declare module 'better-sqlite3';
