@@ -1,0 +1,10 @@
+{
+  "name": "logicapp-runner",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "pnpm --filter @logicapp/api dev",
+    "build": "pnpm -r build",
+    "start": "pnpm --filter @logicapp/api start"
+  }
+}
