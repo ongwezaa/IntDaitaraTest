@@ -52,27 +52,36 @@ function showAlert(message, type = 'danger') {
 function normalisePrefix(value) {
   let raw = (value ?? '').toString().trim();
   if (!raw) {
-    return OUTPUT_ROOT;
+    return '';
   }
   raw = raw.replace(/\\/g, '/').replace(/\/{2,}/g, '/').replace(/^\/+/, '');
   if (!raw) {
+    return '';
+  }
+
+  const segments = raw.split('/').filter(Boolean);
+  const sanitised = [];
+
+  for (const segment of segments) {
+    if (segment === '.' || !segment) {
+      continue;
+    }
+    if (segment === '..') {
+      sanitised.pop();
+      continue;
+    }
+    sanitised.push(segment);
+  }
+
+  if (!sanitised.length) {
+    return '';
+  }
+
+  if (sanitised[0] !== 'output') {
     return OUTPUT_ROOT;
   }
-  if (!raw.startsWith('output')) {
-    return OUTPUT_ROOT;
-  }
-  if (raw === 'output') {
-    return OUTPUT_ROOT;
-  }
-  if (raw.startsWith('output/')) {
-    return raw.endsWith('/') ? raw : `${raw}/`;
-  }
-  const remainder = raw.slice('output'.length).replace(/^\/?/, '');
-  if (!remainder) {
-    return OUTPUT_ROOT;
-  }
-  const candidate = `output/${remainder}`;
-  return candidate.endsWith('/') ? candidate : `${candidate}/`;
+
+  return `${sanitised.join('/')}/`;
 }
 
 function formatSize(bytes) {
@@ -84,33 +93,32 @@ function formatSize(bytes) {
 
 function getParentPrefix(prefix) {
   const normalised = normalisePrefix(prefix);
+  if (!normalised) {
+    return '';
+  }
   if (normalised === OUTPUT_ROOT) {
-    return OUTPUT_ROOT;
+    return '';
   }
   const trimmed = normalised.replace(/\/$/, '');
-  const lastSlash = trimmed.lastIndexOf('/');
-  if (lastSlash <= 0) {
-    return OUTPUT_ROOT;
+  const segments = trimmed.split('/').filter(Boolean);
+  if (segments.length <= 1) {
+    return '';
   }
-  const parent = `${trimmed.slice(0, lastSlash)}/`;
-  return parent.startsWith(OUTPUT_ROOT) ? parent : OUTPUT_ROOT;
+  segments.pop();
+  return `${segments.join('/')}/`;
 }
 
 function getOutputSegments(prefix = '') {
   const normalised = normalisePrefix(prefix);
+  if (!normalised) {
+    return [];
+  }
   const trimmed = normalised.replace(/\/$/, '');
-  const segments = trimmed ? trimmed.split('/').filter(Boolean) : [];
-  if (!segments.length) {
-    return ['output'];
-  }
-  if (segments[0] !== 'output') {
-    segments.unshift('output');
-  }
-  return segments;
+  return trimmed ? trimmed.split('/').filter(Boolean) : [];
 }
 
 function canGoUp() {
-  return currentPrefix !== OUTPUT_ROOT;
+  return normalisePrefix(currentPrefix) !== '';
 }
 
 function updateUrl() {
@@ -187,7 +195,7 @@ function renderBreadcrumb() {
     const rootLink = document.createElement('a');
     rootLink.href = '#';
     rootLink.textContent = 'root';
-    rootLink.dataset.prefix = OUTPUT_ROOT;
+    rootLink.dataset.prefix = '';
     rootLi.appendChild(rootLink);
     ol.appendChild(rootLi);
   } else {
@@ -459,7 +467,22 @@ async function loadList() {
     if (token !== listRequestToken || requestPrefix !== currentPrefix) {
       return;
     }
-    allItems = Array.isArray(items) ? items : [];
+    let nextItems = Array.isArray(items) ? items : [];
+    if (currentPrefix === '') {
+      nextItems = nextItems.filter(
+        (item) => item?.kind === 'folder' && normalisePrefix(item.name) === OUTPUT_ROOT,
+      );
+      if (!nextItems.length) {
+        nextItems = [
+          {
+            name: OUTPUT_ROOT,
+            displayName: 'output',
+            kind: 'folder',
+          },
+        ];
+      }
+    }
+    allItems = nextItems;
     applyFilters({ resetPage: true });
     updateSortIndicators();
   } catch (error) {
@@ -622,7 +645,8 @@ if (copyPreviewBtn) {
   try {
     await ensureHealth();
     const params = new URLSearchParams(window.location.search);
-    const prefix = params.get('prefix') || OUTPUT_ROOT;
+    const paramValue = params.get('prefix');
+    const prefix = paramValue === null ? OUTPUT_ROOT : paramValue;
     setCurrentPrefix(prefix);
     await loadList();
   } catch (error) {
