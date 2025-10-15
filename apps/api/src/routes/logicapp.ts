@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { ulid } from 'ulid';
 import { appConfig } from '../config.js';
-import { buildBlobSas } from '../services/blobService.js';
 import { triggerLogicApp } from '../services/logicAppService.js';
 import { RunStore } from '../services/runStore.js';
 
@@ -20,20 +19,12 @@ export function createLogicAppRouter(store: RunStore) {
       }
       const fileName = fileParam.trim();
       const runId = ulid();
-      const fileKeys = ['file', 'config', 'sourceMappingPrompt', 'selectMappingPrompt'] as const;
       const payload: Record<string, unknown> = { ...params };
-
-      fileKeys.forEach((key) => {
-        const value = params[key];
-        if (typeof value === 'string' && value.trim()) {
-          payload[key] = buildBlobSas(value.trim(), 'r', appConfig.sasExpiryMinutes);
-        }
-      });
 
       const triggerResult = await triggerLogicApp({ payload });
       const run = store.create({
         id: runId,
-        fileUrl: typeof payload.file === 'string' ? String(payload.file) : buildBlobSas(fileName, 'r', appConfig.sasExpiryMinutes),
+        fileUrl: fileName,
         parameters: params,
         outputPrefix: `${appConfig.outputPrefix}${runId}/`,
         logicRunId: triggerResult.runId ?? null,
