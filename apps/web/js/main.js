@@ -767,12 +767,16 @@ function populateSelect(selectEl, files, placeholder) {
 
   files.forEach((file) => {
     const option = document.createElement('option');
-    option.value = file.name;
-    option.textContent = file.name;
+    const relativeName = formatRelativePath(file.name) || file.name;
+    option.value = relativeName;
+    option.textContent = relativeName;
     selectEl.appendChild(option);
   });
 
-  if (previousValue && files.some((f) => f.name === previousValue)) {
+  if (
+    previousValue &&
+    files.some((f) => (formatRelativePath(f.name) || f.name) === previousValue)
+  ) {
     selectEl.value = previousValue;
   }
 }
