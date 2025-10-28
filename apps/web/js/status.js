@@ -186,7 +186,6 @@ function renderRows(runs) {
       <td>${escapeHtml(formatDate(run.updatedAt))}</td>
       <td>
         <div class="d-inline-flex flex-wrap gap-2">
-          <button class="btn btn-soft btn-sm poll-btn" data-id="${run.id}" type="button">Poll</button>
           <button class="btn btn-soft btn-sm details-btn" data-id="${run.id}" type="button">Details</button>
           ${outputLink}
         </div>
@@ -204,16 +203,6 @@ async function loadRuns() {
     updateSortIndicators();
   } catch (error) {
     showAlert(error.message || 'Failed to load runs');
-  }
-}
-
-async function pollRun(id) {
-  try {
-    const updated = await apiFetch(`/runs/${id}/poll`, { method: 'POST' });
-    showAlert(`Run ${updated.id} status: ${updated.status}`, 'info');
-    await loadRuns();
-  } catch (error) {
-    showAlert(error.message || 'Failed to poll run');
   }
 }
 
@@ -288,14 +277,6 @@ function attachEventListeners() {
 
   if (tableBody) {
     tableBody.addEventListener('click', (event) => {
-      const pollButton = event.target.closest('.poll-btn');
-      if (pollButton) {
-        const id = pollButton.getAttribute('data-id');
-        if (id) {
-          pollRun(id);
-        }
-        return;
-      }
       const detailsButton = event.target.closest('.details-btn');
       if (detailsButton) {
         const id = detailsButton.getAttribute('data-id');
