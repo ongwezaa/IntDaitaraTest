@@ -164,8 +164,17 @@ function renderRows(runs) {
   runs.forEach((run) => {
     const row = document.createElement('tr');
     const targetEnv = run.parameters?.target_env ?? '-';
-    const outputLink = run.status === 'Succeeded' && run.outputPrefix
-      ? `<a class="btn btn-soft btn-sm" href="/output?prefix=${encodeURIComponent(run.outputPrefix)}">Outputs</a>`
+    const projectParam = typeof run.parameters?.project === 'string' ? run.parameters.project.trim() : '';
+    const timestampParam = typeof run.parameters?.timestamp === 'string' ? run.parameters.timestamp.trim() : '';
+    const parameterPrefix = projectParam && timestampParam
+      ? `output/${projectParam}/${timestampParam}/`
+      : '';
+    const effectivePrefix = parameterPrefix || run.outputPrefix || '';
+    const normalisedPrefix = effectivePrefix && !effectivePrefix.endsWith('/')
+      ? `${effectivePrefix}/`
+      : effectivePrefix;
+    const outputLink = normalisedPrefix
+      ? `<a class="btn btn-soft btn-sm" href="/output?prefix=${encodeURIComponent(normalisedPrefix)}">Output</a>`
       : '';
     const parametersButton = `<button class="btn btn-soft btn-sm parameters-btn" data-id="${run.id}" type="button">View</button>`;
     row.innerHTML = `
@@ -177,7 +186,6 @@ function renderRows(runs) {
       <td>${escapeHtml(formatDate(run.updatedAt))}</td>
       <td>
         <div class="d-inline-flex flex-wrap gap-2">
-          <button class="btn btn-soft btn-sm poll-btn" data-id="${run.id}" type="button">Poll</button>
           <button class="btn btn-soft btn-sm details-btn" data-id="${run.id}" type="button">Details</button>
           ${outputLink}
         </div>
@@ -195,16 +203,6 @@ async function loadRuns() {
     updateSortIndicators();
   } catch (error) {
     showAlert(error.message || 'Failed to load runs');
-  }
-}
-
-async function pollRun(id) {
-  try {
-    const updated = await apiFetch(`/runs/${id}/poll`, { method: 'POST' });
-    showAlert(`Run ${updated.id} status: ${updated.status}`, 'info');
-    await loadRuns();
-  } catch (error) {
-    showAlert(error.message || 'Failed to poll run');
   }
 }
 
@@ -279,14 +277,6 @@ function attachEventListeners() {
 
   if (tableBody) {
     tableBody.addEventListener('click', (event) => {
-      const pollButton = event.target.closest('.poll-btn');
-      if (pollButton) {
-        const id = pollButton.getAttribute('data-id');
-        if (id) {
-          pollRun(id);
-        }
-        return;
-      }
       const detailsButton = event.target.closest('.details-btn');
       if (detailsButton) {
         const id = detailsButton.getAttribute('data-id');
