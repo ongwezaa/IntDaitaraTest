@@ -1,53 +1,17 @@
 import { apiFetch } from './config.js';
 
-const PROJECTS_STORAGE_KEY = 'daitara_projects';
 const SELECTED_PROJECT_KEY = 'daitara_selected_project';
 export const DEFAULT_PROJECT = 'All';
 const INPUT_ROOT = 'input/';
 const OUTPUT_ROOT = 'output/';
+const EXCLUDED_PROJECTS = new Set(['shared']);
 
 let projectSelectEl = null;
-let projectAddBtn = null;
-let projectModalEl = null;
-let projectModal = null;
-let projectNameInput = null;
-let projectSaveBtn = null;
-let projectSaveSpinner = null;
-let projectNameFeedback = null;
-
 let currentProject = loadStoredSelectedProject();
 let cachedProjects = [];
 const listeners = new Set();
 let initPromise = null;
 let pendingRefresh = null;
-
-function loadStoredProjects() {
-  try {
-    const raw = window.localStorage.getItem(PROJECTS_STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed
-      .map((item) => (typeof item === 'string' ? item.trim() : ''))
-      .filter(Boolean);
-  } catch (error) {
-    console.warn('Unable to read stored projects', error);
-    return [];
-  }
-}
-
-function saveStoredProjects(projects) {
-  try {
-    const unique = mergeProjectNames(projects);
-    window.localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(unique));
-  } catch (error) {
-    console.warn('Unable to persist projects', error);
-  }
-}
 
 function loadStoredSelectedProject() {
   try {
@@ -69,49 +33,47 @@ function storeSelectedProject(value) {
   }
 }
 
-function mergeProjectNames(existing = [], additions = []) {
-  const map = new Map();
-  const add = (value) => {
-    if (!value) return;
-    const key = value.toLowerCase();
-    if (!map.has(key)) {
-      map.set(key, value);
-    }
-  };
-  existing.forEach(add);
-  additions.forEach(add);
-  return Array.from(map.values()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+function extractProjectSegment(path, base) {
+  if (typeof path !== 'string' || !path) {
+    return '';
+  }
+  const trimmedPath = path.replace(/\/$/, '');
+  const baseNoSlash = (base || '').replace(/\/$/, '');
+  const relative = trimmedPath.startsWith(baseNoSlash)
+    ? trimmedPath.slice(baseNoSlash.length).replace(/^\//, '')
+    : trimmedPath;
+  const [segment = ''] = relative.split('/');
+  return segment.trim();
 }
 
-function normaliseProjectName(raw) {
-  if (typeof raw !== 'string') {
-    return '';
+function shouldIncludeProject(name) {
+  if (!name) {
+    return false;
   }
-  const trimmed = raw.trim();
-  if (!trimmed) {
-    return '';
-  }
-  return trimmed
-    .replace(/[\\/]+/g, '-')
-    .replace(/\s+/g, '-')
-    .replace(/[^a-zA-Z0-9_-]/g, '-')
-    .replace(/-{2,}/g, '-')
-    .replace(/^[-_]+|[-_]+$/g, '')
-    .slice(0, 80);
+  return !EXCLUDED_PROJECTS.has(name.toLowerCase());
 }
 
-function normaliseSegmentFromPath(path, base) {
-  if (!path) return '';
-  const trimmed = path.replace(/\/$/, '');
-  const baseNoSlash = base.replace(/\/$/, '');
-  const effective = trimmed.startsWith(baseNoSlash)
-    ? trimmed.slice(baseNoSlash.length).replace(/^\//, '')
-    : trimmed;
-  if (!effective) {
-    return '';
+function populateSelect() {
+  if (!projectSelectEl) {
+    return;
   }
-  const [segment] = effective.split('/');
-  return segment ? normaliseProjectName(segment) : '';
+  const options = [DEFAULT_PROJECT, ...cachedProjects];
+  projectSelectEl.innerHTML = '';
+  options.forEach((name) => {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    projectSelectEl.appendChild(option);
+  });
+
+  const desired = options.includes(currentProject) ? currentProject : DEFAULT_PROJECT;
+  const changed = desired !== currentProject;
+  currentProject = desired;
+  storeSelectedProject(currentProject);
+  projectSelectEl.value = currentProject;
+  if (changed) {
+    notifyProjectChange();
+  }
 }
 
 function notifyProjectChange() {
@@ -123,25 +85,6 @@ function notifyProjectChange() {
       console.error('Project listener failed', error);
     }
   });
-}
-
-function populateSelect() {
-  if (!projectSelectEl) {
-    return;
-  }
-  const projects = [DEFAULT_PROJECT, ...cachedProjects];
-  projectSelectEl.innerHTML = '';
-  projects.forEach((name) => {
-    const option = document.createElement('option');
-    option.value = name;
-    option.textContent = name;
-    projectSelectEl.appendChild(option);
-  });
-  if (!projects.includes(currentProject)) {
-    currentProject = DEFAULT_PROJECT;
-    storeSelectedProject(currentProject);
-  }
-  projectSelectEl.value = currentProject;
 }
 
 function setProject(value) {
@@ -157,183 +100,44 @@ function setProject(value) {
   notifyProjectChange();
 }
 
-function clearProjectForm() {
-  if (projectNameInput) {
-    projectNameInput.value = '';
-    projectNameInput.classList.remove('is-invalid');
-  }
-  if (projectNameFeedback) {
-    projectNameFeedback.textContent = '';
-  }
-  if (projectSaveBtn) {
-    projectSaveBtn.removeAttribute('disabled');
-  }
-  if (projectSaveSpinner) {
-    projectSaveSpinner.classList.add('d-none');
-  }
-}
-
-function showProjectError(message) {
-  if (!projectNameInput) return;
-  projectNameInput.classList.add('is-invalid');
-  if (projectNameFeedback) {
-    projectNameFeedback.textContent = message;
-  }
-}
-
-function hideProjectError() {
-  if (!projectNameInput) return;
-  projectNameInput.classList.remove('is-invalid');
-  if (projectNameFeedback) {
-    projectNameFeedback.textContent = '';
-  }
-}
-
-function setModalLoading(isLoading) {
-  if (isLoading) {
-    projectSaveBtn?.setAttribute('disabled', 'true');
-    projectNameInput?.setAttribute('disabled', 'true');
-    projectSaveSpinner?.classList.remove('d-none');
-  } else {
-    projectSaveBtn?.removeAttribute('disabled');
-    projectNameInput?.removeAttribute('disabled');
-    projectSaveSpinner?.classList.add('d-none');
-  }
-}
-
-function projectExists(name) {
-  const lower = name.toLowerCase();
-  return lower === DEFAULT_PROJECT.toLowerCase() || cachedProjects.some((item) => item.toLowerCase() === lower);
-}
-
-async function handleProjectCreate() {
-  hideProjectError();
-  if (!projectNameInput) return;
-  const normalised = normaliseProjectName(projectNameInput.value);
-  if (!normalised) {
-    showProjectError('Please provide a valid project name (letters, numbers, hyphen or underscore).');
+function attachEventHandlers() {
+  if (!projectSelectEl) {
     return;
   }
-  if (projectExists(normalised)) {
-    showProjectError('Project already exists.');
-    return;
-  }
-  setModalLoading(true);
+  projectSelectEl.addEventListener('change', (event) => {
+    setProject(event.target.value);
+  });
+}
+
+async function fetchInputProjects() {
   try {
-    await apiFetch('/files/folder', {
-      method: 'POST',
-      body: JSON.stringify({ parent: INPUT_ROOT, name: normalised }),
-    });
-    cachedProjects = mergeProjectNames(cachedProjects, [normalised]);
-    saveStoredProjects(cachedProjects);
-    populateSelect();
-    setProject(normalised);
-    if (projectModal) {
-      projectModal.hide();
-    } else if (projectModalEl) {
-      projectModalEl.classList.remove('show');
-      projectModalEl.setAttribute('aria-hidden', 'true');
-      projectModalEl.style.display = 'none';
-      document.body.classList.remove('modal-open');
-      document.body.style.removeProperty('padding-right');
+    const items = await apiFetch(`/files/list?prefix=${encodeURIComponent(INPUT_ROOT)}&hierarchical=true`);
+    if (!Array.isArray(items)) {
+      return [];
     }
+    const names = new Set();
+    items.forEach((item) => {
+      if (!item || item.kind !== 'folder' || typeof item.name !== 'string') {
+        return;
+      }
+      const segment = extractProjectSegment(item.name, INPUT_ROOT);
+      if (shouldIncludeProject(segment)) {
+        names.add(segment);
+      }
+    });
+    const ordered = Array.from(names.values());
+    ordered.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    return ordered;
   } catch (error) {
-    console.error('Failed to create project', error);
-    showProjectError(error?.message || 'Unable to create project. Please try again.');
-  } finally {
-    setModalLoading(false);
+    console.warn('Unable to load input projects', error);
+    return [];
   }
 }
 
 async function discoverProjects() {
-  const discovered = new Set(mergeProjectNames(loadStoredProjects(), cachedProjects));
-  try {
-    const inputItems = await apiFetch(`/files/list?prefix=${encodeURIComponent(INPUT_ROOT)}&hierarchical=true`);
-    if (Array.isArray(inputItems)) {
-      inputItems
-        .filter((item) => item && item.kind === 'folder' && typeof item.name === 'string')
-        .forEach((item) => {
-          const segment = normaliseSegmentFromPath(item.name, INPUT_ROOT);
-          if (segment) {
-            discovered.add(segment);
-          }
-        });
-    }
-  } catch (error) {
-    console.warn('Unable to load input projects', error);
-  }
-  try {
-    const runs = await apiFetch('/runs');
-    if (Array.isArray(runs)) {
-      runs.forEach((run) => {
-        const project = typeof run?.parameters?.project === 'string' ? run.parameters.project.trim() : '';
-        const segment = normaliseProjectName(project);
-        if (segment) {
-          discovered.add(segment);
-        }
-      });
-    }
-  } catch (error) {
-    console.warn('Unable to load run projects', error);
-  }
-  const names = Array.from(discovered.values()).filter((name) => name && name !== DEFAULT_PROJECT);
-  names.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-  cachedProjects = names;
-  saveStoredProjects(cachedProjects);
+  const projects = await fetchInputProjects();
+  cachedProjects = projects;
   populateSelect();
-}
-
-function attachEventHandlers() {
-  if (projectSelectEl) {
-    projectSelectEl.addEventListener('change', (event) => {
-      const value = event.target.value;
-      setProject(value);
-    });
-  }
-
-  if (projectAddBtn && projectModalEl) {
-    projectAddBtn.addEventListener('click', () => {
-      hideProjectError();
-      if (projectNameInput) {
-        projectNameInput.removeAttribute('disabled');
-        projectNameInput.value = '';
-      }
-      if (projectSaveBtn) {
-        projectSaveBtn.removeAttribute('disabled');
-      }
-      if (projectSaveSpinner) {
-        projectSaveSpinner.classList.add('d-none');
-      }
-    });
-  }
-
-  if (projectModalEl) {
-    projectModalEl.addEventListener('shown.bs.modal', () => {
-      hideProjectError();
-      projectNameInput?.removeAttribute('disabled');
-      projectNameInput?.focus();
-    });
-    projectModalEl.addEventListener('hidden.bs.modal', () => {
-      clearProjectForm();
-      setModalLoading(false);
-    });
-  }
-
-  if (projectSaveBtn) {
-    projectSaveBtn.addEventListener('click', handleProjectCreate);
-  }
-
-  if (projectNameInput) {
-    projectNameInput.addEventListener('input', () => {
-      hideProjectError();
-    });
-    projectNameInput.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        handleProjectCreate();
-      }
-    });
-  }
 }
 
 async function refreshProjects() {
@@ -343,6 +147,10 @@ async function refreshProjects() {
     });
   }
   return pendingRefresh;
+}
+
+export function refreshProjectsList() {
+  return refreshProjects();
 }
 
 export function getSelectedProject() {
@@ -362,16 +170,25 @@ export function onProjectChange(callback, options = {}) {
   };
 }
 
+function normalisePathSegment(value) {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  return value.replace(/^\/+|\/+$/g, '');
+}
+
 export function resolveInputRoot(project = getSelectedProject()) {
-  if (project && project !== DEFAULT_PROJECT) {
-    return `${INPUT_ROOT}${project.replace(/\/$/, '')}/`;
+  const segment = normalisePathSegment(project);
+  if (segment && segment !== DEFAULT_PROJECT) {
+    return `${INPUT_ROOT}${segment}/`;
   }
   return INPUT_ROOT;
 }
 
 export function resolveOutputRoot(project = getSelectedProject()) {
-  if (project && project !== DEFAULT_PROJECT) {
-    return `${OUTPUT_ROOT}${project.replace(/\/$/, '')}/`;
+  const segment = normalisePathSegment(project);
+  if (segment && segment !== DEFAULT_PROJECT) {
+    return `${OUTPUT_ROOT}${segment}/`;
   }
   return OUTPUT_ROOT;
 }
@@ -382,18 +199,6 @@ export async function initProjectControls() {
   }
   initPromise = (async () => {
     projectSelectEl = document.getElementById('projectSelect');
-    projectAddBtn = document.getElementById('projectAddBtn');
-    projectModalEl = document.getElementById('projectModal');
-    projectNameInput = document.getElementById('projectNameInput');
-    projectSaveBtn = document.getElementById('projectSaveBtn');
-    projectSaveSpinner = document.getElementById('projectSaveSpinner');
-    projectNameFeedback = document.getElementById('projectNameFeedback');
-
-    if (projectModalEl && window.bootstrap?.Modal) {
-      projectModal = window.bootstrap.Modal.getOrCreateInstance(projectModalEl);
-    }
-
-    cachedProjects = mergeProjectNames(cachedProjects, loadStoredProjects());
     populateSelect();
     attachEventHandlers();
     await refreshProjects();
@@ -401,15 +206,17 @@ export async function initProjectControls() {
   return initPromise;
 }
 
-export async function addProject(name) {
-  const normalised = normaliseProjectName(name);
-  if (!normalised) {
-    throw new Error('Invalid project name');
+function scheduleAutoInit() {
+  const initialise = () => {
+    initProjectControls().catch((error) => {
+      console.warn('Failed to initialise project controls', error);
+    });
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initialise, { once: true });
+  } else {
+    initialise();
   }
-  if (!projectExists(normalised)) {
-    cachedProjects = mergeProjectNames(cachedProjects, [normalised]);
-    saveStoredProjects(cachedProjects);
-    populateSelect();
-  }
-  setProject(normalised);
 }
+
+scheduleAutoInit();

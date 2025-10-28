@@ -1,5 +1,12 @@
 import { API_BASE, apiFetch, ensureHealth } from './config.js';
-import { initProjectControls, onProjectChange, getSelectedProject, resolveInputRoot, DEFAULT_PROJECT } from './projects.js';
+import {
+  initProjectControls,
+  onProjectChange,
+  getSelectedProject,
+  resolveInputRoot,
+  DEFAULT_PROJECT,
+  refreshProjectsList,
+} from './projects.js';
 
 const fileList = document.getElementById('fileList');
 const searchInput = document.getElementById('searchInput');
@@ -890,7 +897,7 @@ function toggleTriggerLoading(isLoading) {
 async function createFolder() {
   const name = folderNameInput?.value.trim();
   if (!name) {
-    showAlert('Please provide a folder name', 'warning');
+    showAlert('Please provide a project name', 'warning');
     return;
   }
   try {
@@ -902,10 +909,11 @@ async function createFolder() {
     folderNameInput.value = '';
     await loadList();
     if (result?.folder) {
-      showAlert(`Folder created: ${formatFriendlyPath(result.folder)}`, 'success');
+      showAlert(`Project created: ${formatFriendlyPath(result.folder)}`, 'success');
+      await refreshProjectsList();
     }
   } catch (error) {
-    showAlert(error.message || 'Failed to create folder');
+    showAlert(error.message || 'Failed to create project');
   }
 }
 
