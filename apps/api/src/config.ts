@@ -40,6 +40,7 @@ export const appConfig = {
   outputPrefix: process.env.OUTPUT_PREFIX ?? 'output/',
   logicAppUrl: getRequired('LOGIC_APP_TRIGGER_URL'),
   logicAppBearer: process.env.LOGIC_APP_BEARER ?? '',
+  logicAppRunStatusUrlTemplate: process.env.LOGIC_APP_RUN_STATUS_URL_TEMPLATE ?? '',
   sasExpiryMinutes: parseNumber('BLOB_SAS_EXPIRY_MINUTES', 30),
   runStorePath: path.resolve(process.cwd(), process.env.RUNS_DB_PATH ?? './data/runs.json'),
   webRoot: process.env.WEB_ROOT ? path.resolve(process.cwd(), process.env.WEB_ROOT) : undefined,
