@@ -39,6 +39,18 @@
               <li class="nav-item"><a class="nav-link active" href="/status">Run History</a></li>
               <li class="nav-item"><a class="nav-link" href="/output">Output Browser</a></li>
             </ul>
+            <div class="project-selector mt-3 mt-lg-0">
+              <label class="form-label form-label-sm text-white-50 mb-1" for="projectSelect">Project</label>
+              <div class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
+                <select class="form-select form-select-sm project-select" id="projectSelect" aria-label="Select project">
+                  <option value="All">All</option>
+                </select>
+                <button class="btn btn-soft btn-sm" id="projectAddBtn" type="button" data-bs-toggle="modal" data-bs-target="#projectModal">
+                  <i class="bi bi-plus-lg me-1"></i>
+                  New project
+                </button>
+              </div>
+            </div>
             <div class="header-meta mt-3 mt-lg-0">
               <span class="version-badge">Version 0.1</span>
               <span class="space-orbit" role="img" aria-label="Spinning planet icon">
@@ -118,6 +130,32 @@
 
       <div id="alertContainer" class="mt-3"></div>
     </main>
+
+    <div class="modal fade" id="projectModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Create new project</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label" for="projectNameInput">Project name</label>
+              <input type="text" class="form-control" id="projectNameInput" autocomplete="off" />
+              <div class="form-text">Use letters, numbers, hyphen or underscore. Spaces will be converted to hyphen.</div>
+              <div class="invalid-feedback" id="projectNameFeedback"></div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-gradient" id="projectSaveBtn">
+              <span class="spinner-border spinner-border-sm d-none" id="projectSaveSpinner" role="status" aria-hidden="true"></span>
+              Create
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div class="modal fade" id="detailsModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
