@@ -750,3 +750,68 @@ main {
 .spinner-border.spinner-border-sm {
   margin-right: 0.25rem;
 }
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.status-badge::before {
+  content: '';
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.35);
+}
+
+.status-badge.status-success {
+  color: #166534;
+  background: rgba(34, 197, 94, 0.18);
+}
+
+.status-badge.status-success::before {
+  background: #22c55e;
+}
+
+.status-badge.status-info {
+  color: #1d4ed8;
+  background: rgba(59, 130, 246, 0.18);
+}
+
+.status-badge.status-info::before {
+  background: #3b82f6;
+}
+
+.status-badge.status-danger {
+  color: #b91c1c;
+  background: rgba(248, 113, 113, 0.2);
+}
+
+.status-badge.status-danger::before {
+  background: #ef4444;
+}
+
+.status-badge.status-warning {
+  color: #92400e;
+  background: rgba(234, 179, 8, 0.22);
+}
+
+.status-badge.status-warning::before {
+  background: #f59e0b;
+}
+
+.status-badge.status-secondary {
+  color: #1f2937;
+  background: rgba(148, 163, 184, 0.25);
+}
+
+.status-badge.status-secondary::before {
+  background: #64748b;
+}

@@ -53,8 +53,8 @@ function statusBadge(status) {
     Canceled: 'warning',
     Unknown: 'secondary',
   };
-  const cls = map[status] || 'secondary';
-  return `<span class="badge bg-${cls}">${escapeHtml(status)}</span>`;
+  const variant = map[status] || 'secondary';
+  return `<span class="status-badge status-${variant}">${escapeHtml(status || 'Unknown')}</span>`;
 }
 
 function getPageSize() {
