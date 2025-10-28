@@ -32,6 +32,8 @@ cp apps/api/.env.sample apps/api/.env
 ```
 
 At minimum set `AZURE_STORAGE_ACCOUNT_NAME`, `AZURE_STORAGE_ACCOUNT_KEY`, `AZURE_STORAGE_CONTAINER`, and `LOGIC_APP_TRIGGER_URL`.
+If you want the API to refresh run history statuses using Logic App run identifiers, also set `LOGIC_APP_RUN_STATUS_URL_TEMPLATE`
+to an Azure Management API URL that includes `{{runId}}` or `{runId}` where the workflow run name should be inserted.
 
 ### 3. Start the API (also serves the frontend)
 
