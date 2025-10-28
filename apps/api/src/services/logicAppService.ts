@@ -96,33 +96,69 @@ export async function triggerLogicApp({ payload }: TriggerInput): Promise<Trigge
   const operationLocationHeader = getHeader(response.headers, 'operation-location');
   const trackingUrlFromHeader = asyncOperationHeader ?? operationLocationHeader ?? undefined;
   const runIdFromLocation = extractRunIdFromUrl(locationHeader ?? trackingUrlFromHeader);
+  const bodyData = response.data as Record<string, unknown> | undefined;
+  const properties = (bodyData?.properties ?? {}) as Record<string, unknown>;
+  const runIdFromBody = (() => {
+    const candidates = [
+      bodyData?.runId,
+      bodyData?.name,
+      properties?.workflowRunId,
+      properties?.workflowRunName,
+      properties?.runId,
+      properties?.name,
+    ];
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string') {
+        const trimmed = candidate.trim();
+        if (trimmed) {
+          return trimmed;
+        }
+      }
+    }
+    return undefined;
+  })();
+  const trackingUrlFromBody = (() => {
+    const candidates = [
+      bodyData?.trackingUrl,
+      properties?.trackingUrl,
+      properties?.statusUrl,
+      properties?.statusLink,
+      properties?.statusEndpoint,
+      properties?.url,
+    ];
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string') {
+        const trimmed = candidate.trim();
+        if (trimmed) {
+          return trimmed;
+        }
+      }
+    }
+    return undefined;
+  })();
+  const resolvedRunId =
+    workflowRunIdHeader ??
+    runIdFromLocation ??
+    runIdFromBody ??
+    extractRunIdFromUrl(trackingUrlFromBody ?? locationHeader ?? undefined);
+  const resolvedTrackingUrl =
+    trackingUrlFromHeader ??
+    trackingUrlFromBody ??
+    locationHeader;
 
   if (response.status === 202) {
-    const bodyData = response.data as Record<string, unknown> | undefined;
     return {
-      runId:
-        workflowRunIdHeader ??
-        runIdFromLocation ??
-        (typeof bodyData?.runId === 'string' ? bodyData.runId : undefined) ??
-        (typeof bodyData?.name === 'string' ? bodyData.name : undefined),
-      trackingUrl:
-        trackingUrlFromHeader ??
-        (typeof bodyData === 'object' && bodyData?.trackingUrl ? String(bodyData.trackingUrl) : undefined),
+      runId: resolvedRunId,
+      trackingUrl: resolvedTrackingUrl,
       location: locationHeader,
       status: 'Running',
     };
   }
 
   if (response.status >= 200 && response.status < 300) {
-    const body = response.data as Record<string, unknown> | undefined;
     return {
-      runId:
-        workflowRunIdHeader ??
-        runIdFromLocation ??
-        (typeof body?.runId === 'string' ? body.runId : undefined) ??
-        (typeof body?.name === 'string' ? body.name : undefined),
-      trackingUrl:
-        trackingUrlFromHeader ?? (typeof body?.trackingUrl === 'string' ? body.trackingUrl : undefined),
+      runId: resolvedRunId,
+      trackingUrl: resolvedTrackingUrl,
       location: locationHeader,
       status: 'Queued',
     };
