@@ -39,6 +39,12 @@
               <li class="nav-item"><a class="nav-link" href="/status">Run History</a></li>
               <li class="nav-item"><a class="nav-link" href="/output">Output Browser</a></li>
             </ul>
+            <div class="project-selector mt-3 mt-lg-0">
+              <label class="form-label form-label-sm text-white-50 mb-1" for="projectSelect">Project</label>
+              <select class="form-select form-select-sm project-select" id="projectSelect" aria-label="Select project">
+                <option value="All">All</option>
+              </select>
+            </div>
             <div class="header-meta mt-3 mt-lg-0">
               <span class="version-badge">Version 0.1</span>
               <span class="space-orbit" role="img" aria-label="Spinning planet icon">
@@ -76,5 +82,6 @@
       integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
       crossorigin="anonymous"
     ></script>
+    <script type="module" src="/web/js/projects.js"></script>
   </body>
 </html>
