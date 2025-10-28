@@ -7,11 +7,7 @@ import { RunRecord, RunStatus } from '../types.js';
 const IN_PROGRESS_STATUSES: RunStatus[] = ['Queued', 'Running', 'Unknown'];
 
 function canPoll(run: RunRecord): boolean {
-  if (run.trackingUrl || run.location) {
-    return true;
-  }
-  const template = appConfig.logicAppRunStatusUrlTemplate?.trim();
-  return Boolean(template && run.logicRunId);
+  return Boolean(run.trackingUrl || run.location);
 }
 
 function shouldPoll(run: RunRecord): boolean {
