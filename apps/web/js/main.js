@@ -1,4 +1,5 @@
 import { API_BASE, apiFetch, ensureHealth } from './config.js';
+import { initProjectControls, onProjectChange, getSelectedProject, resolveInputRoot, DEFAULT_PROJECT } from './projects.js';
 
 const fileList = document.getElementById('fileList');
 const searchInput = document.getElementById('searchInput');
@@ -45,13 +46,13 @@ const copyButtonDefaultLabel = copyPreviewBtn
   ? copyPreviewBtn.querySelector('.btn-copy-label')?.textContent?.trim() ?? 'Copy'
   : 'Copy';
 
-const INPUT_ROOT = 'input/';
-
 let bootstrapModal;
 let folderModal;
 let renameModal;
 let deleteModal;
-let currentPrefix = INPUT_ROOT;
+let currentProject = getSelectedProject();
+let inputRoot = resolveInputRoot(currentProject);
+let currentPrefix = inputRoot;
 let allItems = [];
 let filteredItems = [];
 let currentPage = 1;
@@ -218,13 +219,23 @@ function escapeAttr(value = '') {
 }
 
 function getInputSegments(prefix = '') {
+  const base = inputRoot.replace(/\/$/, '');
   const trimmed = prefix.replace(/\/$/, '');
-  const segments = trimmed ? trimmed.split('/').filter(Boolean) : [];
-  if (!segments.length) {
-    return ['input'];
+  if (!trimmed || trimmed === base) {
+    return [];
   }
-  if (segments[0] !== 'input') {
-    segments.unshift('input');
+  if (base && trimmed.startsWith(`${base}/`)) {
+    const relative = trimmed.slice(base.length + 1);
+    return relative ? relative.split('/').filter(Boolean) : [];
+  }
+  const segments = trimmed ? trimmed.split('/').filter(Boolean) : [];
+  const baseSegments = base ? base.split('/').filter(Boolean) : [];
+  while (segments.length && baseSegments.length && segments[0] === baseSegments[0]) {
+    segments.shift();
+    baseSegments.shift();
+  }
+  if (!base && segments[0] === 'input') {
+    segments.shift();
   }
   return segments;
 }
@@ -232,7 +243,13 @@ function getInputSegments(prefix = '') {
 function formatRelativePath(path = '') {
   if (!path) return '';
   const trimmed = path.replace(/\/$/, '');
-  if (trimmed === 'input') return '';
+  const base = inputRoot.replace(/\/$/, '');
+  if (!trimmed || trimmed === base) {
+    return '';
+  }
+  if (base && trimmed.startsWith(`${base}/`)) {
+    return trimmed.slice(base.length + 1);
+  }
   if (trimmed.startsWith('input/')) {
     return trimmed.slice('input/'.length);
   }
@@ -241,11 +258,10 @@ function formatRelativePath(path = '') {
 
 function formatFriendlyPath(path = '') {
   const trimmed = path.replace(/\/$/, '');
-  if (!trimmed || trimmed === 'input') {
-    return 'root/input';
-  }
+  const base = inputRoot.replace(/\/$/, '');
+  const baseLabel = base ? `root/${base}` : 'root/input';
   const relative = formatRelativePath(trimmed);
-  return relative ? `root/input/${relative}` : 'root/input';
+  return relative ? `${baseLabel}/${relative}` : baseLabel;
 }
 
 function showAlert(message, type = 'danger') {
@@ -264,6 +280,15 @@ function normalisePrefix(value) {
   return value.endsWith('/') ? value : `${value}/`;
 }
 
+function clampToInputRoot(prefix) {
+  const base = normalisePrefix(inputRoot);
+  const candidate = prefix ? normalisePrefix(prefix) : base;
+  if (!candidate.startsWith(base)) {
+    return base;
+  }
+  return candidate || base;
+}
+
 function getParentPrefix(prefix) {
   const trimmed = prefix.replace(/\/$/, '');
   if (!trimmed) return '';
@@ -274,7 +299,7 @@ function getParentPrefix(prefix) {
 }
 
 function canGoUp() {
-  return currentPrefix !== INPUT_ROOT;
+  return normalisePrefix(currentPrefix) !== normalisePrefix(inputRoot);
 }
 
 function setCopyButtonLabel(text) {
@@ -360,6 +385,7 @@ function renderBreadcrumb() {
   ol.className = 'breadcrumb mb-0';
 
   const segments = getInputSegments(currentPrefix);
+  const basePrefix = normalisePrefix(inputRoot);
 
   if (segments.length) {
     const rootLi = document.createElement('li');
@@ -367,7 +393,7 @@ function renderBreadcrumb() {
     const rootLink = document.createElement('a');
     rootLink.href = '#';
     rootLink.textContent = 'root';
-    rootLink.dataset.prefix = INPUT_ROOT;
+    rootLink.dataset.prefix = basePrefix;
     rootLi.appendChild(rootLink);
     ol.appendChild(rootLi);
   } else {
@@ -377,7 +403,7 @@ function renderBreadcrumb() {
     ol.appendChild(rootOnly);
   }
 
-  let cumulative = '';
+  let cumulative = basePrefix.replace(/\/$/, '');
   segments.forEach((segment, index) => {
     cumulative = cumulative ? `${cumulative}/${segment}` : segment;
     const li = document.createElement('li');
@@ -732,8 +758,7 @@ async function previewBlob(name) {
 }
 
 function setCurrentPrefix(prefix) {
-  const resolved = prefix ? normalisePrefix(prefix) : INPUT_ROOT;
-  currentPrefix = resolved || INPUT_ROOT;
+  currentPrefix = clampToInputRoot(prefix);
   sortOverrideActive = false;
   renderBreadcrumb();
 }
@@ -801,7 +826,7 @@ function applyParameterDefaults() {
 
 async function loadFlatFiles() {
   try {
-    const files = await apiFetch(`/files/list?prefix=${encodeURIComponent(INPUT_ROOT)}`);
+    const files = await apiFetch(`/files/list?prefix=${encodeURIComponent(inputRoot)}`);
     allFilesFlat = Array.isArray(files) ? files : [];
     populateSelect(fileSelect, allFilesFlat, 'Select source file');
     populateSelect(configSelect, allFilesFlat, 'Select config file');
@@ -834,6 +859,9 @@ function updateParametersPreview() {
     mock_row_count: Number(mockRowCountInput?.value) || 200,
     auto_teardown: getBoolean(autoTeardownSelect),
   };
+  if (currentProject && currentProject !== DEFAULT_PROJECT) {
+    payload.project = currentProject;
+  }
   parametersPreview.value = JSON.stringify(payload, null, 2);
 }
 
@@ -960,6 +988,14 @@ function resetParameters() {
   updateParametersPreview();
 }
 
+function clearFileSelections() {
+  [fileSelect, configSelect, sourcePromptSelect, selectPromptSelect].forEach((selectEl) => {
+    if (selectEl) {
+      selectEl.value = '';
+    }
+  });
+}
+
 function attachEventListeners() {
   if (searchInput) {
     searchInput.addEventListener('input', () => {
@@ -1016,7 +1052,7 @@ function attachEventListeners() {
       const link = event.target.closest('a[data-prefix]');
       if (!link) return;
       event.preventDefault();
-      setCurrentPrefix(link.dataset.prefix ?? INPUT_ROOT);
+      setCurrentPrefix(link.dataset.prefix ?? inputRoot);
       loadList();
       resetPreview();
     });
@@ -1233,6 +1269,7 @@ async function deleteItem() {
 
 (async () => {
   try {
+    await initProjectControls();
     await ensureHealth();
     if (window.bootstrap) {
       bootstrapModal = new window.bootstrap.Modal(previewModalEl);
@@ -1252,9 +1289,31 @@ async function deleteItem() {
         }
       });
     }
-    setCurrentPrefix(INPUT_ROOT);
-    renderBreadcrumb();
-    await Promise.all([loadList(), loadFlatFiles()]);
+
+    const handleProjectChange = async (project) => {
+      currentProject = project;
+      inputRoot = resolveInputRoot(project);
+      setCurrentPrefix(inputRoot);
+      if (searchInput) {
+        searchInput.value = '';
+      }
+      currentPage = 1;
+      sortOverrideActive = false;
+      allItems = [];
+      filteredItems = [];
+      allFilesFlat = [];
+      hasInitialisedParams = false;
+      clearFileSelections();
+      resetPreview();
+      updateParametersPreview();
+      await Promise.all([loadList(), loadFlatFiles()]);
+    };
+
+    onProjectChange((project) => {
+      handleProjectChange(project).catch((error) => {
+        showAlert(error.message || 'Failed to load project assets');
+      });
+    }, { immediate: true });
   } catch (error) {
     showAlert('Backend unavailable. Please confirm the API is running.');
   }

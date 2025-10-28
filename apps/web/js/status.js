@@ -1,4 +1,5 @@
 import { apiFetch, ensureHealth } from './config.js';
+import { initProjectControls, onProjectChange, getSelectedProject, DEFAULT_PROJECT } from './projects.js';
 
 const tableBody = document.querySelector('#runsTable tbody');
 const refreshBtn = document.getElementById('refreshBtn');
@@ -19,6 +20,7 @@ let currentPage = 1;
 let sortKey = 'createdAt';
 let sortDirection = 'desc';
 let searchDebounce;
+let currentProject = getSelectedProject();
 
 function escapeHtml(value = '') {
   return String(value)
@@ -110,6 +112,12 @@ function sortRuns(runs) {
 function applyFilters({ resetPage = false } = {}) {
   const term = searchInput?.value.trim().toLowerCase() ?? '';
   filteredRuns = allRuns.filter((run) => {
+    if (currentProject && currentProject !== DEFAULT_PROJECT) {
+      const projectParam = typeof run?.parameters?.project === 'string' ? run.parameters.project.trim() : '';
+      if (projectParam !== currentProject) {
+        return false;
+      }
+    }
     if (!term) return true;
     const haystack = [
       run.id,
@@ -273,10 +281,15 @@ attachEventListeners();
 
 (async () => {
   try {
+    await initProjectControls();
     await ensureHealth();
     if (window.bootstrap && detailsModalEl) {
       detailsModal = new window.bootstrap.Modal(detailsModalEl);
     }
+    onProjectChange((project) => {
+      currentProject = project;
+      applyFilters({ resetPage: true });
+    }, { immediate: true });
     await loadRuns();
   } catch (error) {
     showAlert('Backend unavailable. Please confirm the API is running.');
