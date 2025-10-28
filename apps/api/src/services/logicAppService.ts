@@ -157,7 +157,7 @@ interface PollResult {
 }
 
 export async function pollLogicAppStatus({ runId, trackingUrl, location }: PollInput): Promise<PollResult> {
-  const target = trackingUrl ?? location ?? buildRunStatusUrlFromTemplate(runId);
+  const target = buildRunStatusUrlFromTemplate(runId) ?? trackingUrl ?? location;
   if (!target) {
     return { status: 'Unknown', runId: runId ?? undefined };
   }
