@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosResponseHeaders } from 'axios';
 import { appConfig } from '../config.js';
 import { RunStatus } from '../types.js';
 
@@ -11,6 +11,27 @@ interface TriggerResult {
 
 interface TriggerInput {
   payload: Record<string, unknown>;
+}
+
+type HeaderLike = AxiosResponseHeaders | Partial<Record<string, unknown>>;
+
+function getHeader(headers: HeaderLike, name: string): string | undefined {
+  if (headers && typeof (headers as AxiosResponseHeaders).get === 'function') {
+    const value = (headers as AxiosResponseHeaders).get(name);
+    if (typeof value === 'string' && value) {
+      return value;
+    }
+  }
+  const lowerName = name.toLowerCase();
+  const record = headers as Record<string, unknown>;
+  const direct = record[lowerName] ?? record[name];
+  if (typeof direct === 'string' && direct) {
+    return direct;
+  }
+  if (Array.isArray(direct)) {
+    return direct.filter((item) => typeof item === 'string').join(', ');
+  }
+  return undefined;
 }
 
 export async function triggerLogicApp({ payload }: TriggerInput): Promise<TriggerResult> {
@@ -33,12 +54,21 @@ export async function triggerLogicApp({ payload }: TriggerInput): Promise<Trigge
     validateStatus: () => true,
   });
 
+  const workflowRunIdHeader = getHeader(response.headers, 'x-ms-workflow-run-id');
+  const asyncOperationHeader =
+    getHeader(response.headers, 'azure-asyncoperation') ?? getHeader(response.headers, 'azure-async-operation');
+  const locationHeader = getHeader(response.headers, 'location');
+  const operationLocationHeader = getHeader(response.headers, 'operation-location');
+  const trackingUrlFromHeader = asyncOperationHeader ?? operationLocationHeader ?? undefined;
+
   if (response.status === 202) {
-    const location = response.headers['location'] ?? response.headers['Location'];
+    const bodyData = response.data as Record<string, unknown> | undefined;
     return {
-      runId: undefined,
-      trackingUrl: typeof response.data === 'object' && response.data?.trackingUrl ? String(response.data.trackingUrl) : undefined,
-      location: typeof location === 'string' ? location : undefined,
+      runId: workflowRunIdHeader ?? (typeof bodyData?.runId === 'string' ? bodyData.runId : undefined),
+      trackingUrl:
+        trackingUrlFromHeader ??
+        (typeof bodyData === 'object' && bodyData?.trackingUrl ? String(bodyData.trackingUrl) : undefined),
+      location: locationHeader,
       status: 'Running',
     };
   }
@@ -46,9 +76,10 @@ export async function triggerLogicApp({ payload }: TriggerInput): Promise<Trigge
   if (response.status >= 200 && response.status < 300) {
     const body = response.data as Record<string, unknown> | undefined;
     return {
-      runId: typeof body?.runId === 'string' ? body.runId : undefined,
-      trackingUrl: typeof body?.trackingUrl === 'string' ? body.trackingUrl : undefined,
-      location: undefined,
+      runId: workflowRunIdHeader ?? (typeof body?.runId === 'string' ? body.runId : undefined),
+      trackingUrl:
+        trackingUrlFromHeader ?? (typeof body?.trackingUrl === 'string' ? body.trackingUrl : undefined),
+      location: locationHeader,
       status: 'Queued',
     };
   }

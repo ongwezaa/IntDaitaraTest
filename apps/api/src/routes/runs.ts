@@ -1,13 +1,48 @@
 import { Router } from 'express';
 import { pollLogicAppStatus } from '../services/logicAppService.js';
 import { RunStore } from '../services/runStore.js';
+import { RunRecord, RunStatus } from '../types.js';
+
+const IN_PROGRESS_STATUSES: RunStatus[] = ['Queued', 'Running', 'Unknown'];
+
+function shouldPoll(run: RunRecord): boolean {
+  if (!run.trackingUrl && !run.location) {
+    return false;
+  }
+  return IN_PROGRESS_STATUSES.includes(run.status);
+}
 
 export function createRunsRouter(store: RunStore) {
   const router = Router();
 
-  router.get('/', (req, res) => {
-    const runs = store.list(100);
-    res.json(runs);
+  router.get('/', async (req, res, next) => {
+    try {
+      const runs = store.list(100);
+      const targets = runs.filter(shouldPoll);
+      if (targets.length > 0) {
+        await Promise.allSettled(
+          targets.map(async (run) => {
+            try {
+              const status = await pollLogicAppStatus({
+                runId: run.logicRunId,
+                trackingUrl: run.trackingUrl,
+                location: run.location,
+              });
+              if (status && status !== run.status) {
+                store.update(run.id, { status });
+              }
+            } catch (error) {
+              // Swallow polling errors so a single failed status update does not block the list response
+              console.error('Failed to poll Logic App status', run.id, error);
+            }
+          }),
+        );
+      }
+      const refreshedRuns = targets.length > 0 ? store.list(100) : runs;
+      res.json(refreshedRuns);
+    } catch (error) {
+      next(error);
+    }
   });
 
   router.get('/:id', (req, res) => {
