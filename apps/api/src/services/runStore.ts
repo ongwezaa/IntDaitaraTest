@@ -12,6 +12,7 @@ interface RunCreateInput {
   trackingUrl?: string | null;
   location?: string | null;
   initialStatus: RunStatus;
+  triggerResponse?: unknown;
 }
 
 export class RunStore {
@@ -65,6 +66,7 @@ export class RunStore {
       updatedAt: now,
       outputPrefix: input.outputPrefix,
       parameters: input.parameters,
+      triggerResponse: input.triggerResponse ?? null,
     };
     this.cache.set(run.id, run);
     this.persist();
