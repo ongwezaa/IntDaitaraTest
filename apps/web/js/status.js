@@ -5,8 +5,6 @@ const refreshBtn = document.getElementById('refreshBtn');
 const alertContainer = document.getElementById('alertContainer');
 const detailsModalEl = document.getElementById('detailsModal');
 const detailsContent = document.getElementById('detailsContent');
-const parametersModalEl = document.getElementById('parametersModal');
-const parametersContent = document.getElementById('parametersContent');
 const searchInput = document.getElementById('searchInput');
 const pageSizeSelect = document.getElementById('pageSizeSelect');
 const pageSummary = document.getElementById('pageSummary');
@@ -15,7 +13,6 @@ const nextPageBtn = document.getElementById('nextPageBtn');
 const sortableHeaders = document.querySelectorAll('#runsTable th.sortable');
 
 let detailsModal;
-let parametersModal;
 let allRuns = [];
 let filteredRuns = [];
 let currentPage = 1;
@@ -88,7 +85,6 @@ function sortRuns(runs) {
     let valueB;
     switch (sortKey) {
       case 'createdAt':
-      case 'updatedAt':
         valueA = a[sortKey] ? new Date(a[sortKey]).getTime() : 0;
         valueB = b[sortKey] ? new Date(b[sortKey]).getTime() : 0;
         break;
@@ -96,13 +92,9 @@ function sortRuns(runs) {
         valueA = a.status || '';
         valueB = b.status || '';
         break;
-      case 'parameters':
-        valueA = JSON.stringify(a.parameters || {}).toLowerCase();
-        valueB = JSON.stringify(b.parameters || {}).toLowerCase();
-        break;
-      case 'targetEnv':
-        valueA = (a.parameters?.target_env || '').toLowerCase();
-        valueB = (b.parameters?.target_env || '').toLowerCase();
+      case 'project':
+        valueA = (typeof a.parameters?.project === 'string' ? a.parameters.project : '').toLowerCase();
+        valueB = (typeof b.parameters?.project === 'string' ? b.parameters.project : '').toLowerCase();
         break;
       case 'id':
       default:
@@ -121,8 +113,7 @@ function applyFilters({ resetPage = false } = {}) {
     if (!term) return true;
     const haystack = [
       run.id,
-      run.parameters?.target_env,
-      run.parameters?.target_type,
+      run.parameters?.project,
       JSON.stringify(run.parameters || {}),
     ]
       .filter(Boolean)
@@ -157,13 +148,12 @@ function renderRows(runs) {
   tableBody.innerHTML = '';
   if (!runs.length) {
     const row = document.createElement('tr');
-    row.innerHTML = '<td colspan="7" class="text-center text-muted py-4">No runs yet.</td>';
+    row.innerHTML = '<td colspan="5" class="text-center text-muted py-4">No runs yet.</td>';
     tableBody.appendChild(row);
     return;
   }
   runs.forEach((run) => {
     const row = document.createElement('tr');
-    const targetEnv = run.parameters?.target_env ?? '-';
     const projectParam = typeof run.parameters?.project === 'string' ? run.parameters.project.trim() : '';
     const timestampParam = typeof run.parameters?.timestamp === 'string' ? run.parameters.timestamp.trim() : '';
     const parameterPrefix = projectParam && timestampParam
@@ -176,14 +166,11 @@ function renderRows(runs) {
     const outputLink = normalisedPrefix
       ? `<a class="btn btn-soft btn-sm" href="/output?prefix=${encodeURIComponent(normalisedPrefix)}">Output</a>`
       : '';
-    const parametersButton = `<button class="btn btn-soft btn-sm parameters-btn" data-id="${run.id}" type="button">View</button>`;
     row.innerHTML = `
       <td>${escapeHtml(formatDate(run.createdAt))}</td>
+      <td>${escapeHtml(projectParam || '-')}</td>
       <td>${escapeHtml(run.id)}</td>
-      <td>${parametersButton}</td>
-      <td>${escapeHtml(targetEnv)}</td>
       <td>${statusBadge(run.status)}</td>
-      <td>${escapeHtml(formatDate(run.updatedAt))}</td>
       <td>
         <div class="d-inline-flex flex-wrap gap-2">
           <button class="btn btn-soft btn-sm details-btn" data-id="${run.id}" type="button">Details</button>
@@ -210,15 +197,6 @@ function showDetails(run) {
   if (!detailsContent) return;
   detailsContent.textContent = JSON.stringify(run, null, 2);
   detailsModal?.show();
-}
-
-function showParameters(run) {
-  if (!parametersContent) return;
-  const content = run?.parameters && typeof run.parameters === 'object'
-    ? JSON.stringify(run.parameters, null, 2)
-    : 'No parameters recorded.';
-  parametersContent.textContent = content;
-  parametersModal?.show();
 }
 
 function attachEventListeners() {
@@ -268,7 +246,7 @@ function attachEventListeners() {
         sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
       } else {
         sortKey = key;
-        sortDirection = key === 'createdAt' || key === 'updatedAt' ? 'desc' : 'asc';
+        sortDirection = key === 'createdAt' ? 'desc' : 'asc';
       }
       updateSortIndicators();
       applyFilters();
@@ -286,17 +264,6 @@ function attachEventListeners() {
             showDetails(run);
           }
         }
-        return;
-      }
-      const parametersButton = event.target.closest('.parameters-btn');
-      if (parametersButton) {
-        const id = parametersButton.getAttribute('data-id');
-        if (id) {
-          const run = allRuns.find((item) => item.id === id);
-          if (run) {
-            showParameters(run);
-          }
-        }
       }
     });
   }
@@ -309,9 +276,6 @@ attachEventListeners();
     await ensureHealth();
     if (window.bootstrap && detailsModalEl) {
       detailsModal = new window.bootstrap.Modal(detailsModalEl);
-    }
-    if (window.bootstrap && parametersModalEl) {
-      parametersModal = new window.bootstrap.Modal(parametersModalEl);
     }
     await loadRuns();
   } catch (error) {
