@@ -78,6 +78,7 @@ export function createLogicAppRouter(store: RunStore) {
         trackingUrl: triggerResult.trackingUrl ?? null,
         location: triggerResult.location ?? null,
         initialStatus: triggerResult.status,
+        triggerResponse: triggerResult.rawResponse,
       });
       res.json(run);
     } catch (error) {

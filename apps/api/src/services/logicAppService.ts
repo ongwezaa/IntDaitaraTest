@@ -7,6 +7,12 @@ interface TriggerResult {
   trackingUrl?: string;
   location?: string;
   status: RunStatus;
+  rawResponse: {
+    status: number;
+    statusText: string;
+    headers: Record<string, unknown>;
+    data: unknown;
+  };
 }
 
 interface TriggerInput {
@@ -14,6 +20,54 @@ interface TriggerInput {
 }
 
 type HeaderLike = AxiosResponseHeaders | Partial<Record<string, unknown>>;
+
+function extractStringFromRecord(
+  record: Record<string, unknown> | undefined,
+  keys: string[],
+): string | undefined {
+  if (!record) return undefined;
+  for (const [rawKey, rawValue] of Object.entries(record)) {
+    if (typeof rawKey !== 'string') continue;
+    const normalisedKey = rawKey.toLowerCase();
+    const targetKey = keys.find((key) => key.toLowerCase() === normalisedKey);
+    if (targetKey) {
+      if (typeof rawValue === 'string') {
+        const trimmed = rawValue.trim();
+        if (trimmed) {
+          return trimmed;
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
+function findStringDeep(sources: Array<Record<string, unknown> | undefined>, keys: string[]): string | undefined {
+  const queue: Record<string, unknown>[] = [];
+  const seen = new Set<Record<string, unknown>>();
+  for (const source of sources) {
+    if (source) {
+      queue.push(source);
+    }
+  }
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current || seen.has(current)) {
+      continue;
+    }
+    seen.add(current);
+    const direct = extractStringFromRecord(current, keys);
+    if (direct) {
+      return direct;
+    }
+    for (const value of Object.values(current)) {
+      if (value && typeof value === 'object') {
+        queue.push(value as Record<string, unknown>);
+      }
+    }
+  }
+  return undefined;
+}
 
 function getHeader(headers: HeaderLike, name: string): string | undefined {
   if (headers && typeof (headers as AxiosResponseHeaders).get === 'function') {
@@ -89,6 +143,23 @@ export async function triggerLogicApp({ payload }: TriggerInput): Promise<Trigge
     validateStatus: () => true,
   });
 
+  const serialisedHeaders = (() => {
+    const source = response.headers as AxiosResponseHeaders & {
+      toJSON?: () => Record<string, unknown>;
+    };
+    if (source && typeof source.toJSON === 'function') {
+      return source.toJSON();
+    }
+    return Object.fromEntries(
+      Object.entries(source ?? {}).map(([key, value]) => {
+        if (Array.isArray(value)) {
+          return [key, value.join(', ')];
+        }
+        return [key, value];
+      }),
+    );
+  })();
+
   const workflowRunIdHeader = getHeader(response.headers, 'x-ms-workflow-run-id');
   const asyncOperationHeader =
     getHeader(response.headers, 'azure-asyncoperation') ?? getHeader(response.headers, 'azure-async-operation');
@@ -98,44 +169,30 @@ export async function triggerLogicApp({ payload }: TriggerInput): Promise<Trigge
   const runIdFromLocation = extractRunIdFromUrl(locationHeader ?? trackingUrlFromHeader);
   const bodyData = response.data as Record<string, unknown> | undefined;
   const properties = (bodyData?.properties ?? {}) as Record<string, unknown>;
-  const runIdFromBody = (() => {
-    const candidates = [
-      bodyData?.runId,
-      bodyData?.name,
-      properties?.workflowRunId,
-      properties?.workflowRunName,
-      properties?.runId,
-      properties?.name,
-    ];
-    for (const candidate of candidates) {
-      if (typeof candidate === 'string') {
-        const trimmed = candidate.trim();
-        if (trimmed) {
-          return trimmed;
-        }
-      }
-    }
-    return undefined;
-  })();
-  const trackingUrlFromBody = (() => {
-    const candidates = [
-      bodyData?.trackingUrl,
-      properties?.trackingUrl,
-      properties?.statusUrl,
-      properties?.statusLink,
-      properties?.statusEndpoint,
-      properties?.url,
-    ];
-    for (const candidate of candidates) {
-      if (typeof candidate === 'string') {
-        const trimmed = candidate.trim();
-        if (trimmed) {
-          return trimmed;
-        }
-      }
-    }
-    return undefined;
-  })();
+  const runIdFromBody =
+    findStringDeep(
+      [
+        bodyData as Record<string, unknown> | undefined,
+        properties,
+        (properties?.workflowRun as Record<string, unknown> | undefined) ?? undefined,
+        (properties?.workflowRun as { properties?: Record<string, unknown> })?.properties,
+      ],
+      ['runId', 'name', 'workflowRunId', 'workflowRunName'],
+    ) ?? undefined;
+
+  const trackingUrlFromBody =
+    findStringDeep(
+      [
+        bodyData as Record<string, unknown> | undefined,
+        properties,
+        (properties?.links as Record<string, unknown> | undefined) ?? undefined,
+        (properties?.outputs as Record<string, unknown> | undefined) ?? undefined,
+        (properties?.response as Record<string, unknown> | undefined) ?? undefined,
+        (properties?.workflowRun as Record<string, unknown> | undefined) ?? undefined,
+        (properties?.workflowRun as { properties?: Record<string, unknown> })?.properties,
+      ],
+      ['trackingUrl', 'statusUrl', 'statusLink', 'statusEndpoint', 'statusQueryGetUri', 'url'],
+    ) ?? undefined;
   const resolvedRunId =
     workflowRunIdHeader ??
     runIdFromLocation ??
@@ -146,20 +203,28 @@ export async function triggerLogicApp({ payload }: TriggerInput): Promise<Trigge
     trackingUrlFromBody ??
     locationHeader;
 
+  const baseResult = {
+    runId: resolvedRunId,
+    trackingUrl: resolvedTrackingUrl,
+    location: locationHeader,
+    rawResponse: {
+      status: response.status,
+      statusText: response.statusText,
+      headers: serialisedHeaders,
+      data: response.data,
+    },
+  } as const;
+
   if (response.status === 202) {
     return {
-      runId: resolvedRunId,
-      trackingUrl: resolvedTrackingUrl,
-      location: locationHeader,
+      ...baseResult,
       status: 'Running',
     };
   }
 
   if (response.status >= 200 && response.status < 300) {
     return {
-      runId: resolvedRunId,
-      trackingUrl: resolvedTrackingUrl,
-      location: locationHeader,
+      ...baseResult,
       status: 'Queued',
     };
   }
