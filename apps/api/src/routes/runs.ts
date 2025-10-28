@@ -1,12 +1,21 @@
 import { Router } from 'express';
+import { appConfig } from '../config.js';
 import { pollLogicAppStatus } from '../services/logicAppService.js';
 import { RunStore } from '../services/runStore.js';
 import { RunRecord, RunStatus } from '../types.js';
 
 const IN_PROGRESS_STATUSES: RunStatus[] = ['Queued', 'Running', 'Unknown'];
 
+function canPoll(run: RunRecord): boolean {
+  if (run.trackingUrl || run.location) {
+    return true;
+  }
+  const template = appConfig.logicAppRunStatusUrlTemplate?.trim();
+  return Boolean(template && run.logicRunId);
+}
+
 function shouldPoll(run: RunRecord): boolean {
-  if (!run.trackingUrl && !run.location) {
+  if (!canPoll(run)) {
     return false;
   }
   return IN_PROGRESS_STATUSES.includes(run.status);

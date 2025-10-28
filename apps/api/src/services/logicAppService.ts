@@ -69,6 +69,20 @@ function extractRunIdFromUrl(input?: string | null): string | undefined {
   }
 }
 
+function buildRunStatusUrlFromTemplate(runId?: string | null): string | undefined {
+  if (!runId) return undefined;
+  const template = appConfig.logicAppRunStatusUrlTemplate?.trim();
+  if (!template) return undefined;
+  const encoded = encodeURIComponent(runId);
+  return template
+    .replace(/\{\{\s*runIdEncoded\s*\}\}/gi, encoded)
+    .replace(/\{\{\s*logicRunIdEncoded\s*\}\}/gi, encoded)
+    .replace(/\{\{\s*runId\s*\}\}/gi, runId)
+    .replace(/\{\{\s*logicRunId\s*\}\}/gi, runId)
+    .replace(/\{runId\}/gi, encoded)
+    .replace(/\{logicRunId\}/gi, encoded);
+}
+
 export async function triggerLogicApp({ payload }: TriggerInput): Promise<TriggerResult> {
   const body = {
     config: '',
@@ -143,7 +157,7 @@ interface PollResult {
 }
 
 export async function pollLogicAppStatus({ runId, trackingUrl, location }: PollInput): Promise<PollResult> {
-  const target = trackingUrl ?? location;
+  const target = trackingUrl ?? location ?? buildRunStatusUrlFromTemplate(runId);
   if (!target) {
     return { status: 'Unknown', runId: runId ?? undefined };
   }
