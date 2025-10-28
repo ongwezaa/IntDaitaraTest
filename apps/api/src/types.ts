@@ -17,6 +17,7 @@ export interface RunRecord {
   updatedAt: string;
   outputPrefix: string;
   parameters: Record<string, unknown>;
+  triggerResponse?: unknown;
 }
 
 export interface ListBlobItem {

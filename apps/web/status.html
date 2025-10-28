@@ -77,8 +77,8 @@
                 type="search"
                 class="form-control"
                 id="searchInput"
-                placeholder="Search run ID or parameters"
-                aria-label="Search run ID or parameters"
+                placeholder="Search run ID or project"
+                aria-label="Search run ID or project"
               />
             </div>
           </div>
@@ -89,11 +89,9 @@
               <thead>
                 <tr>
                   <th scope="col" data-sort="createdAt" class="sortable" data-direction="desc"><span class="header-label">Created</span></th>
+                  <th scope="col" data-sort="project" class="sortable"><span class="header-label">Project</span></th>
                   <th scope="col" data-sort="id" class="sortable"><span class="header-label">Run ID</span></th>
-                  <th scope="col"><span class="header-label">Parameters</span></th>
-                  <th scope="col" data-sort="targetEnv" class="sortable"><span class="header-label">Target env</span></th>
                   <th scope="col" data-sort="status" class="sortable"><span class="header-label">Status</span></th>
-                  <th scope="col" data-sort="updatedAt" class="sortable"><span class="header-label">Updated</span></th>
                   <th scope="col"><span class="header-label">Actions</span></th>
                 </tr>
               </thead>
@@ -130,20 +128,6 @@
           </div>
           <div class="modal-body">
             <pre id="detailsContent" class="mb-0"></pre>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="modal fade" id="parametersModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Trigger parameters</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <pre id="parametersContent" class="preview-block mb-0"></pre>
           </div>
         </div>
       </div>
