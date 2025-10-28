@@ -34,6 +34,41 @@ function getHeader(headers: HeaderLike, name: string): string | undefined {
   return undefined;
 }
 
+function extractRunIdFromUrl(input?: string | null): string | undefined {
+  if (!input) return undefined;
+  try {
+    const parsed = new URL(input);
+    const searchParams = parsed.searchParams;
+    const paramRunId =
+      searchParams.get('runName') ??
+      searchParams.get('runId') ??
+      searchParams.get('workflowRunId') ??
+      searchParams.get('workflowRunName');
+    if (paramRunId) {
+      return paramRunId;
+    }
+
+    const segments = parsed.pathname.split('/').filter(Boolean);
+    const matchFromSegments = (...candidates: string[]): string | undefined => {
+      for (const candidate of candidates) {
+        const index = segments.findIndex((segment) => segment.toLowerCase() === candidate.toLowerCase());
+        if (index >= 0 && segments.length > index + 1) {
+          return segments[index + 1];
+        }
+      }
+      return undefined;
+    };
+
+    return (
+      matchFromSegments('runs', 'histories') ??
+      (segments.length > 0 ? segments[segments.length - 1] : undefined)
+    );
+  } catch (error) {
+    console.warn('Failed to parse Logic App run identifier from URL', input, error);
+    return undefined;
+  }
+}
+
 export async function triggerLogicApp({ payload }: TriggerInput): Promise<TriggerResult> {
   const body = {
     config: '',
@@ -60,11 +95,16 @@ export async function triggerLogicApp({ payload }: TriggerInput): Promise<Trigge
   const locationHeader = getHeader(response.headers, 'location');
   const operationLocationHeader = getHeader(response.headers, 'operation-location');
   const trackingUrlFromHeader = asyncOperationHeader ?? operationLocationHeader ?? undefined;
+  const runIdFromLocation = extractRunIdFromUrl(locationHeader ?? trackingUrlFromHeader);
 
   if (response.status === 202) {
     const bodyData = response.data as Record<string, unknown> | undefined;
     return {
-      runId: workflowRunIdHeader ?? (typeof bodyData?.runId === 'string' ? bodyData.runId : undefined),
+      runId:
+        workflowRunIdHeader ??
+        runIdFromLocation ??
+        (typeof bodyData?.runId === 'string' ? bodyData.runId : undefined) ??
+        (typeof bodyData?.name === 'string' ? bodyData.name : undefined),
       trackingUrl:
         trackingUrlFromHeader ??
         (typeof bodyData === 'object' && bodyData?.trackingUrl ? String(bodyData.trackingUrl) : undefined),
@@ -76,7 +116,11 @@ export async function triggerLogicApp({ payload }: TriggerInput): Promise<Trigge
   if (response.status >= 200 && response.status < 300) {
     const body = response.data as Record<string, unknown> | undefined;
     return {
-      runId: workflowRunIdHeader ?? (typeof body?.runId === 'string' ? body.runId : undefined),
+      runId:
+        workflowRunIdHeader ??
+        runIdFromLocation ??
+        (typeof body?.runId === 'string' ? body.runId : undefined) ??
+        (typeof body?.name === 'string' ? body.name : undefined),
       trackingUrl:
         trackingUrlFromHeader ?? (typeof body?.trackingUrl === 'string' ? body.trackingUrl : undefined),
       location: locationHeader,
@@ -93,10 +137,15 @@ interface PollInput {
   location?: string | null;
 }
 
-export async function pollLogicAppStatus({ runId, trackingUrl, location }: PollInput): Promise<RunStatus> {
+interface PollResult {
+  status: RunStatus;
+  runId?: string;
+}
+
+export async function pollLogicAppStatus({ runId, trackingUrl, location }: PollInput): Promise<PollResult> {
   const target = trackingUrl ?? location;
   if (!target) {
-    return 'Unknown';
+    return { status: 'Unknown', runId: runId ?? undefined };
   }
   const headers: Record<string, string> = {};
   if (appConfig.logicAppBearer) {
@@ -108,22 +157,35 @@ export async function pollLogicAppStatus({ runId, trackingUrl, location }: PollI
   });
   if (response.status >= 200 && response.status < 300) {
     const body = response.data as Record<string, unknown> | undefined;
-    const status = String(body?.status ?? body?.runtimeStatus ?? '').toLowerCase();
+    const properties = (body?.properties ?? {}) as Record<string, unknown>;
+    const derivedRunId =
+      (typeof body?.name === 'string' && body.name) ||
+      (typeof properties?.workflowRunId === 'string' && properties.workflowRunId) ||
+      (typeof properties?.workflowRunName === 'string' && properties.workflowRunName) ||
+      extractRunIdFromUrl(target) ||
+      undefined;
+    const statusValue =
+      body?.status ??
+      body?.runtimeStatus ??
+      properties?.status ??
+      properties?.runtimeStatus ??
+      properties?.workflowState;
+    const status = String(statusValue ?? '').toLowerCase();
     switch (status) {
       case 'running':
-        return 'Running';
+        return { status: 'Running', runId: derivedRunId ?? runId ?? undefined };
       case 'succeeded':
       case 'success':
-        return 'Succeeded';
+        return { status: 'Succeeded', runId: derivedRunId ?? runId ?? undefined };
       case 'failed':
       case 'failure':
-        return 'Failed';
+        return { status: 'Failed', runId: derivedRunId ?? runId ?? undefined };
       case 'cancelled':
       case 'canceled':
-        return 'Canceled';
+        return { status: 'Canceled', runId: derivedRunId ?? runId ?? undefined };
       default:
-        return 'Unknown';
+        return { status: 'Unknown', runId: derivedRunId ?? runId ?? undefined };
     }
   }
-  return 'Unknown';
+  return { status: 'Unknown', runId: runId ?? extractRunIdFromUrl(target) };
 }

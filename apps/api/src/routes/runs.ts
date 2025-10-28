@@ -23,13 +23,20 @@ export function createRunsRouter(store: RunStore) {
         await Promise.allSettled(
           targets.map(async (run) => {
             try {
-              const status = await pollLogicAppStatus({
+              const result = await pollLogicAppStatus({
                 runId: run.logicRunId,
                 trackingUrl: run.trackingUrl,
                 location: run.location,
               });
-              if (status && status !== run.status) {
-                store.update(run.id, { status });
+              const patch: Partial<RunRecord> = {};
+              if (result.status && result.status !== run.status) {
+                patch.status = result.status;
+              }
+              if (!run.logicRunId && result.runId) {
+                patch.logicRunId = result.runId;
+              }
+              if (Object.keys(patch).length > 0) {
+                store.update(run.id, patch);
               }
             } catch (error) {
               // Swallow polling errors so a single failed status update does not block the list response
@@ -59,12 +66,16 @@ export function createRunsRouter(store: RunStore) {
       if (!run) {
         return res.status(404).json({ ok: false, message: 'Run not found' });
       }
-      const status = await pollLogicAppStatus({
+      const result = await pollLogicAppStatus({
         runId: run.logicRunId,
         trackingUrl: run.trackingUrl,
         location: run.location,
       });
-      const updated = store.update(run.id, { status });
+      const patch: Partial<RunRecord> = { status: result.status };
+      if (!run.logicRunId && result.runId) {
+        patch.logicRunId = result.runId;
+      }
+      const updated = store.update(run.id, patch);
       res.json(updated ?? run);
     } catch (error) {
       next(error);
