@@ -184,22 +184,64 @@ export async function pollLogicAppStatus({ runId, trackingUrl, location }: PollI
       properties?.status ??
       properties?.runtimeStatus ??
       properties?.workflowState;
-    const status = String(statusValue ?? '').toLowerCase();
-    switch (status) {
-      case 'running':
-        return { status: 'Running', runId: derivedRunId ?? runId ?? undefined };
-      case 'succeeded':
-      case 'success':
-        return { status: 'Succeeded', runId: derivedRunId ?? runId ?? undefined };
-      case 'failed':
-      case 'failure':
-        return { status: 'Failed', runId: derivedRunId ?? runId ?? undefined };
-      case 'cancelled':
-      case 'canceled':
-        return { status: 'Canceled', runId: derivedRunId ?? runId ?? undefined };
-      default:
-        return { status: 'Unknown', runId: derivedRunId ?? runId ?? undefined };
+    const normalizedStatus = String(statusValue ?? '')
+      .trim()
+      .toLowerCase();
+    const compactStatus = normalizedStatus.replace(/[\s_-]+/g, '');
+
+    const resolvedStatus = (() => {
+      switch (compactStatus) {
+        case 'running':
+        case 'executing':
+        case 'processing':
+        case 'inprogress':
+        case 'inflight':
+        case 'started':
+        case 'starting':
+        case 'resuming':
+        case 'resumed':
+        case 'pausing':
+        case 'paused':
+        case 'suspended':
+          return 'Running' as const;
+        case 'waiting':
+        case 'queued':
+        case 'pending':
+        case 'notstarted':
+          return 'Queued' as const;
+        case 'succeeded':
+        case 'success':
+        case 'completed':
+        case 'complete':
+        case 'finished':
+        case 'skipped':
+        case 'ignored':
+          return 'Succeeded' as const;
+        case 'failed':
+        case 'failure':
+        case 'faulted':
+        case 'timedout':
+        case 'timeout':
+        case 'aborted':
+        case 'terminated':
+        case 'error':
+        case 'errored':
+          return 'Failed' as const;
+        case 'cancelled':
+        case 'canceled':
+        case 'cancelling':
+        case 'stopped':
+          return 'Canceled' as const;
+        default:
+          return undefined;
+      }
+    })();
+
+    if (resolvedStatus) {
+      return { status: resolvedStatus, runId: derivedRunId ?? runId ?? undefined };
     }
+
+    return { status: 'Unknown', runId: derivedRunId ?? runId ?? undefined };
   }
   return { status: 'Unknown', runId: runId ?? extractRunIdFromUrl(target) };
 }
