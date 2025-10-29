@@ -258,26 +258,6 @@ function getParentPrefix(prefix) {
   return candidate.startsWith(base) ? candidate : base;
 }
 
-function getOutputSegments(prefix = '') {
-  const normalised = clampToOutputRoot(prefix);
-  const base = normalisePrefix(outputRoot).replace(/\/$/, '');
-  const trimmed = normalised.replace(/\/$/, '');
-  if (!trimmed || trimmed === base) {
-    return [];
-  }
-  if (base && trimmed.startsWith(`${base}/`)) {
-    const relative = trimmed.slice(base.length + 1);
-    return relative ? relative.split('/').filter(Boolean) : [];
-  }
-  const segments = trimmed ? trimmed.split('/').filter(Boolean) : [];
-  const baseSegments = base ? base.split('/').filter(Boolean) : [];
-  while (segments.length && baseSegments.length && segments[0] === baseSegments[0]) {
-    segments.shift();
-    baseSegments.shift();
-  }
-  return segments;
-}
-
 function canGoUp() {
   return clampToOutputRoot(currentPrefix) !== normalisePrefix(outputRoot);
 }
@@ -345,29 +325,17 @@ function getFileIconInfo(name = '') {
 }
 
 function renderBreadcrumb() {
+  if (!breadcrumb) return;
   breadcrumb.innerHTML = '';
   const nav = document.createElement('nav');
   nav.setAttribute('aria-label', 'breadcrumb');
   const ol = document.createElement('ol');
   ol.className = 'breadcrumb mb-0';
 
-  const segments = getOutputSegments(currentPrefix);
-  const basePrefix = clampToOutputRoot(outputRoot);
-
-  if (segments.length) {
-    const rootLi = document.createElement('li');
-    rootLi.className = 'breadcrumb-item';
-    const rootLink = document.createElement('a');
-    rootLink.href = '#';
-    rootLink.textContent = 'root';
-    rootLink.dataset.prefix = basePrefix;
-    rootLi.appendChild(rootLink);
-    ol.appendChild(rootLi);
-  } else {
-    const rootOnly = document.createElement('li');
-    rootOnly.className = 'breadcrumb-item active';
-    rootOnly.textContent = 'root';
-    ol.appendChild(rootOnly);
+  const normalised = clampToOutputRoot(currentPrefix).replace(/\/$/, '');
+  const segments = normalised ? normalised.split('/').filter(Boolean) : [];
+  if (!segments.length) {
+    segments.push('output');
   }
 
   let cumulative = basePrefix.replace(/\/$/, '');

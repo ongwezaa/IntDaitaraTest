@@ -225,28 +225,6 @@ function escapeAttr(value = '') {
   return escapeHtml(value).replace(/"/g, '&quot;');
 }
 
-function getInputSegments(prefix = '') {
-  const base = inputRoot.replace(/\/$/, '');
-  const trimmed = prefix.replace(/\/$/, '');
-  if (!trimmed || trimmed === base) {
-    return [];
-  }
-  if (base && trimmed.startsWith(`${base}/`)) {
-    const relative = trimmed.slice(base.length + 1);
-    return relative ? relative.split('/').filter(Boolean) : [];
-  }
-  const segments = trimmed ? trimmed.split('/').filter(Boolean) : [];
-  const baseSegments = base ? base.split('/').filter(Boolean) : [];
-  while (segments.length && baseSegments.length && segments[0] === baseSegments[0]) {
-    segments.shift();
-    baseSegments.shift();
-  }
-  if (!base && segments[0] === 'input') {
-    segments.shift();
-  }
-  return segments;
-}
-
 function formatRelativePath(path = '') {
   if (!path) return '';
   const trimmed = path.replace(/\/$/, '');
@@ -263,12 +241,38 @@ function formatRelativePath(path = '') {
   return trimmed;
 }
 
+function mergeFileLists(...lists) {
+  const seen = new Set();
+  const merged = [];
+  lists.forEach((list) => {
+    if (!Array.isArray(list)) {
+      return;
+    }
+    list.forEach((item) => {
+      if (!item || item.kind !== 'file' || typeof item.name !== 'string') {
+        return;
+      }
+      if (seen.has(item.name)) {
+        return;
+      }
+      seen.add(item.name);
+      merged.push(item);
+    });
+  });
+  return merged;
+}
+
 function formatFriendlyPath(path = '') {
   const trimmed = path.replace(/\/$/, '');
-  const base = inputRoot.replace(/\/$/, '');
-  const baseLabel = base ? `root/${base}` : 'root/input';
+  const base = inputRoot.replace(/\/$/, '') || 'input';
+  if (!trimmed) {
+    return base;
+  }
+  if (trimmed.startsWith('input/')) {
+    return trimmed;
+  }
   const relative = formatRelativePath(trimmed);
-  return relative ? `${baseLabel}/${relative}` : baseLabel;
+  return relative ? `${base}/${relative}` : trimmed;
 }
 
 function showAlert(message, type = 'danger') {
@@ -391,23 +395,10 @@ function renderBreadcrumb() {
   const ol = document.createElement('ol');
   ol.className = 'breadcrumb mb-0';
 
-  const segments = getInputSegments(currentPrefix);
-  const basePrefix = normalisePrefix(inputRoot);
-
-  if (segments.length) {
-    const rootLi = document.createElement('li');
-    rootLi.className = 'breadcrumb-item';
-    const rootLink = document.createElement('a');
-    rootLink.href = '#';
-    rootLink.textContent = 'root';
-    rootLink.dataset.prefix = basePrefix;
-    rootLi.appendChild(rootLink);
-    ol.appendChild(rootLi);
-  } else {
-    const rootOnly = document.createElement('li');
-    rootOnly.className = 'breadcrumb-item active';
-    rootOnly.textContent = 'root';
-    ol.appendChild(rootOnly);
+  const normalised = normalisePrefix(currentPrefix).replace(/\/$/, '');
+  const segments = normalised ? normalised.split('/').filter(Boolean) : [];
+  if (!segments.length) {
+    segments.push('input');
   }
 
   let cumulative = basePrefix.replace(/\/$/, '');
@@ -797,19 +788,26 @@ function populateSelect(selectEl, files, placeholder) {
   placeholderOption.selected = true;
   selectEl.appendChild(placeholderOption);
 
-  files.forEach((file) => {
-    const option = document.createElement('option');
+  const availableValues = new Set();
+
+  (Array.isArray(files) ? files : []).forEach((file) => {
+    if (!file || file.kind !== 'file' || typeof file.name !== 'string') {
+      return;
+    }
     const relativeName = formatRelativePath(file.name) || file.name;
+    if (!relativeName) {
+      return;
+    }
+    const option = document.createElement('option');
     option.value = relativeName;
     option.textContent = relativeName;
     selectEl.appendChild(option);
+    availableValues.add(relativeName);
   });
 
-  if (
-    previousValue &&
-    files.some((f) => (formatRelativePath(f.name) || f.name) === previousValue)
-  ) {
+  if (previousValue && availableValues.has(previousValue)) {
     selectEl.value = previousValue;
+    placeholderOption.selected = false;
   }
 }
 
@@ -833,12 +831,25 @@ function applyParameterDefaults() {
 
 async function loadFlatFiles() {
   try {
-    const files = await apiFetch(`/files/list?prefix=${encodeURIComponent(inputRoot)}`);
-    allFilesFlat = Array.isArray(files) ? files : [];
+    const projectPromise = apiFetch(`/files/list?prefix=${encodeURIComponent(inputRoot)}`);
+    const sharedPromise =
+      currentProject !== DEFAULT_PROJECT
+        ? apiFetch(`/files/list?prefix=${encodeURIComponent('input/shared/')}`).catch((error) => {
+            console.warn('Unable to load shared prompts', error);
+            return [];
+          })
+        : Promise.resolve([]);
+    const [projectFiles, sharedFiles] = await Promise.all([projectPromise, sharedPromise]);
+    allFilesFlat = Array.isArray(projectFiles) ? projectFiles : [];
+    const sharedList = Array.isArray(sharedFiles) ? sharedFiles : [];
+    const combinedForPrompts = currentProject !== DEFAULT_PROJECT
+      ? mergeFileLists(allFilesFlat, sharedList)
+      : mergeFileLists(allFilesFlat);
+
     populateSelect(fileSelect, allFilesFlat, 'Select source file');
-    populateSelect(configSelect, allFilesFlat, 'Select config file');
-    populateSelect(sourcePromptSelect, allFilesFlat, 'Select source prompt');
-    populateSelect(selectPromptSelect, allFilesFlat, 'Select select prompt');
+    populateSelect(configSelect, combinedForPrompts, 'Select config file');
+    populateSelect(sourcePromptSelect, combinedForPrompts, 'Select source prompt');
+    populateSelect(selectPromptSelect, combinedForPrompts, 'Select select prompt');
     if (!hasInitialisedParams) {
       applyParameterDefaults();
       hasInitialisedParams = true;
@@ -851,6 +862,18 @@ async function loadFlatFiles() {
 
 function getBoolean(selectEl) {
   return selectEl?.value === 'true';
+}
+
+function deriveProjectForPayload() {
+  if (currentProject && currentProject !== DEFAULT_PROJECT) {
+    return currentProject;
+  }
+  const sourceValue = fileSelect?.value?.trim();
+  if (!sourceValue) {
+    return '';
+  }
+  const [firstSegment = ''] = sourceValue.split('/').filter(Boolean);
+  return firstSegment;
 }
 
 function updateParametersPreview() {
@@ -866,8 +889,9 @@ function updateParametersPreview() {
     mock_row_count: Number(mockRowCountInput?.value) || 200,
     auto_teardown: getBoolean(autoTeardownSelect),
   };
-  if (currentProject && currentProject !== DEFAULT_PROJECT) {
-    payload.project = currentProject;
+  const resolvedProject = deriveProjectForPayload();
+  if (resolvedProject) {
+    payload.project = resolvedProject;
   }
   parametersPreview.value = JSON.stringify(payload, null, 2);
 }
