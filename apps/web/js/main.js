@@ -418,7 +418,7 @@ function renderBreadcrumb() {
     cumulative = cumulative ? `${cumulative}/${segment}` : segment;
     const li = document.createElement('li');
     const isLast = index === segments.length - 1;
-    const shouldLink = !isLast && (!isScopedProject || index >= 2);
+    const shouldLink = !isLast && (!isScopedProject || index > 0);
     if (isLast) {
       li.className = 'breadcrumb-item active';
       li.textContent = formatSegmentLabel(segment);
