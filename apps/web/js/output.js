@@ -5,6 +5,15 @@ const defaultOutputRoot = resolveOutputRoot(DEFAULT_PROJECT);
 let currentProject = getSelectedProject();
 let outputRoot = resolveOutputRoot(currentProject);
 
+function updateOutputGlobals() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  window.basePrefix = outputRoot;
+  window.outputBasePrefix = outputRoot;
+  window.outputCurrentPrefix = currentPrefix;
+}
+
 const fileList = document.getElementById('fileList');
 const searchInput = document.getElementById('searchInput');
 const pageSizeSelect = document.getElementById('pageSizeSelect');
@@ -19,6 +28,7 @@ const alertContainer = document.getElementById('alertContainer');
 const breadcrumb = document.getElementById('breadcrumb');
 
 let currentPrefix = outputRoot;
+updateOutputGlobals();
 let activePreview = { name: '', contentType: '' };
 let allItems = [];
 let filteredItems = [];
@@ -652,6 +662,7 @@ async function previewBlob(name) {
 
 function setCurrentPrefix(prefix) {
   currentPrefix = clampToOutputRoot(prefix);
+  updateOutputGlobals();
   sortOverrideActive = false;
   renderBreadcrumb();
   updateUrl();

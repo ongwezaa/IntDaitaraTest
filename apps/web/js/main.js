@@ -60,6 +60,17 @@ let deleteModal;
 let currentProject = getSelectedProject();
 let inputRoot = resolveInputRoot(currentProject);
 let currentPrefix = inputRoot;
+
+function updateInputGlobals() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  window.basePrefix = inputRoot;
+  window.inputBasePrefix = inputRoot;
+  window.inputCurrentPrefix = currentPrefix;
+}
+
+updateInputGlobals();
 let allItems = [];
 let filteredItems = [];
 let currentPage = 1;
@@ -757,6 +768,7 @@ async function previewBlob(name) {
 
 function setCurrentPrefix(prefix) {
   currentPrefix = clampToInputRoot(prefix);
+  updateInputGlobals();
   sortOverrideActive = false;
   renderBreadcrumb();
 }
