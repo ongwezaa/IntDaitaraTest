@@ -9,6 +9,7 @@ const EXCLUDED_PROJECTS = new Set(['shared']);
 let projectSelectEl = null;
 let currentProject = loadStoredSelectedProject();
 let cachedProjects = [];
+let hasFetchedProjects = false;
 const listeners = new Set();
 let initPromise = null;
 let pendingRefresh = null;
@@ -57,7 +58,23 @@ function populateSelect() {
   if (!projectSelectEl) {
     return;
   }
-  const options = [DEFAULT_PROJECT, ...cachedProjects];
+  const uniqueOptions = new Set();
+  const options = [];
+
+  const addOption = (value) => {
+    if (!value || uniqueOptions.has(value)) {
+      return;
+    }
+    uniqueOptions.add(value);
+    options.push(value);
+  };
+
+  addOption(DEFAULT_PROJECT);
+  cachedProjects.forEach((name) => addOption(name));
+  if (!hasFetchedProjects && currentProject !== DEFAULT_PROJECT) {
+    addOption(currentProject);
+  }
+
   projectSelectEl.innerHTML = '';
   options.forEach((name) => {
     const option = document.createElement('option');
@@ -66,7 +83,7 @@ function populateSelect() {
     projectSelectEl.appendChild(option);
   });
 
-  const desired = options.includes(currentProject) ? currentProject : DEFAULT_PROJECT;
+  const desired = uniqueOptions.has(currentProject) ? currentProject : DEFAULT_PROJECT;
   const changed = desired !== currentProject;
   currentProject = desired;
   storeSelectedProject(currentProject);
@@ -137,6 +154,7 @@ async function fetchInputProjects() {
 async function discoverProjects() {
   const projects = await fetchInputProjects();
   cachedProjects = projects;
+  hasFetchedProjects = true;
   populateSelect();
 }
 
