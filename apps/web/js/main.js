@@ -1,4 +1,12 @@
 import { API_BASE, apiFetch, ensureHealth } from './config.js';
+import {
+  initProjectControls,
+  onProjectChange,
+  getSelectedProject,
+  resolveInputRoot,
+  DEFAULT_PROJECT,
+  refreshProjectsList,
+} from './projects.js';
 
 const fileList = document.getElementById('fileList');
 const searchInput = document.getElementById('searchInput');
@@ -45,13 +53,24 @@ const copyButtonDefaultLabel = copyPreviewBtn
   ? copyPreviewBtn.querySelector('.btn-copy-label')?.textContent?.trim() ?? 'Copy'
   : 'Copy';
 
-const INPUT_ROOT = 'input/';
-
 let bootstrapModal;
 let folderModal;
 let renameModal;
 let deleteModal;
-let currentPrefix = INPUT_ROOT;
+let currentProject = getSelectedProject();
+let inputRoot = resolveInputRoot(currentProject);
+let currentPrefix = inputRoot;
+
+function updateInputGlobals() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  window.basePrefix = inputRoot;
+  window.inputBasePrefix = inputRoot;
+  window.inputCurrentPrefix = currentPrefix;
+}
+
+updateInputGlobals();
 let allItems = [];
 let filteredItems = [];
 let currentPage = 1;
@@ -217,35 +236,54 @@ function escapeAttr(value = '') {
   return escapeHtml(value).replace(/"/g, '&quot;');
 }
 
-function getInputSegments(prefix = '') {
-  const trimmed = prefix.replace(/\/$/, '');
-  const segments = trimmed ? trimmed.split('/').filter(Boolean) : [];
-  if (!segments.length) {
-    return ['input'];
-  }
-  if (segments[0] !== 'input') {
-    segments.unshift('input');
-  }
-  return segments;
-}
-
 function formatRelativePath(path = '') {
   if (!path) return '';
   const trimmed = path.replace(/\/$/, '');
-  if (trimmed === 'input') return '';
+  const base = inputRoot.replace(/\/$/, '');
+  if (!trimmed || trimmed === base) {
+    return '';
+  }
+  if (base && trimmed.startsWith(`${base}/`)) {
+    return trimmed.slice(base.length + 1);
+  }
   if (trimmed.startsWith('input/')) {
     return trimmed.slice('input/'.length);
   }
   return trimmed;
 }
 
+function mergeFileLists(...lists) {
+  const seen = new Set();
+  const merged = [];
+  lists.forEach((list) => {
+    if (!Array.isArray(list)) {
+      return;
+    }
+    list.forEach((item) => {
+      if (!item || item.kind !== 'file' || typeof item.name !== 'string') {
+        return;
+      }
+      if (seen.has(item.name)) {
+        return;
+      }
+      seen.add(item.name);
+      merged.push(item);
+    });
+  });
+  return merged;
+}
+
 function formatFriendlyPath(path = '') {
   const trimmed = path.replace(/\/$/, '');
-  if (!trimmed || trimmed === 'input') {
-    return 'root/input';
+  const base = inputRoot.replace(/\/$/, '') || 'input';
+  if (!trimmed) {
+    return base;
+  }
+  if (trimmed.startsWith('input/')) {
+    return trimmed;
   }
   const relative = formatRelativePath(trimmed);
-  return relative ? `root/input/${relative}` : 'root/input';
+  return relative ? `${base}/${relative}` : trimmed;
 }
 
 function showAlert(message, type = 'danger') {
@@ -264,6 +302,15 @@ function normalisePrefix(value) {
   return value.endsWith('/') ? value : `${value}/`;
 }
 
+function clampToInputRoot(prefix) {
+  const base = normalisePrefix(inputRoot);
+  const candidate = prefix ? normalisePrefix(prefix) : base;
+  if (!candidate.startsWith(base)) {
+    return base;
+  }
+  return candidate || base;
+}
+
 function getParentPrefix(prefix) {
   const trimmed = prefix.replace(/\/$/, '');
   if (!trimmed) return '';
@@ -274,7 +321,7 @@ function getParentPrefix(prefix) {
 }
 
 function canGoUp() {
-  return currentPrefix !== INPUT_ROOT;
+  return normalisePrefix(currentPrefix) !== normalisePrefix(inputRoot);
 }
 
 function setCopyButtonLabel(text) {
@@ -359,39 +406,33 @@ function renderBreadcrumb() {
   const ol = document.createElement('ol');
   ol.className = 'breadcrumb mb-0';
 
-  const segments = getInputSegments(currentPrefix);
-
-  if (segments.length) {
-    const rootLi = document.createElement('li');
-    rootLi.className = 'breadcrumb-item';
-    const rootLink = document.createElement('a');
-    rootLink.href = '#';
-    rootLink.textContent = 'root';
-    rootLink.dataset.prefix = INPUT_ROOT;
-    rootLi.appendChild(rootLink);
-    ol.appendChild(rootLi);
-  } else {
-    const rootOnly = document.createElement('li');
-    rootOnly.className = 'breadcrumb-item active';
-    rootOnly.textContent = 'root';
-    ol.appendChild(rootOnly);
+  const normalised = normalisePrefix(currentPrefix).replace(/\/$/, '');
+  const segments = normalised ? normalised.split('/').filter(Boolean) : [];
+  if (!segments.length) {
+    segments.push('input');
   }
 
   let cumulative = '';
+  const isScopedProject = currentProject && currentProject !== DEFAULT_PROJECT;
   segments.forEach((segment, index) => {
     cumulative = cumulative ? `${cumulative}/${segment}` : segment;
     const li = document.createElement('li');
     const isLast = index === segments.length - 1;
+    const shouldLink = !isLast && (!isScopedProject || index > 0);
     if (isLast) {
       li.className = 'breadcrumb-item active';
       li.textContent = formatSegmentLabel(segment);
     } else {
       li.className = 'breadcrumb-item';
-      const link = document.createElement('a');
-      link.href = '#';
-      link.textContent = formatSegmentLabel(segment);
-      link.dataset.prefix = `${cumulative}/`;
-      li.appendChild(link);
+      if (shouldLink) {
+        const link = document.createElement('a');
+        link.href = '#';
+        link.textContent = formatSegmentLabel(segment);
+        link.dataset.prefix = `${cumulative}/`;
+        li.appendChild(link);
+      } else {
+        li.textContent = formatSegmentLabel(segment);
+      }
     }
     ol.appendChild(li);
   });
@@ -732,8 +773,8 @@ async function previewBlob(name) {
 }
 
 function setCurrentPrefix(prefix) {
-  const resolved = prefix ? normalisePrefix(prefix) : INPUT_ROOT;
-  currentPrefix = resolved || INPUT_ROOT;
+  currentPrefix = clampToInputRoot(prefix);
+  updateInputGlobals();
   sortOverrideActive = false;
   renderBreadcrumb();
 }
@@ -765,19 +806,26 @@ function populateSelect(selectEl, files, placeholder) {
   placeholderOption.selected = true;
   selectEl.appendChild(placeholderOption);
 
-  files.forEach((file) => {
-    const option = document.createElement('option');
+  const availableValues = new Set();
+
+  (Array.isArray(files) ? files : []).forEach((file) => {
+    if (!file || file.kind !== 'file' || typeof file.name !== 'string') {
+      return;
+    }
     const relativeName = formatRelativePath(file.name) || file.name;
+    if (!relativeName) {
+      return;
+    }
+    const option = document.createElement('option');
     option.value = relativeName;
     option.textContent = relativeName;
     selectEl.appendChild(option);
+    availableValues.add(relativeName);
   });
 
-  if (
-    previousValue &&
-    files.some((f) => (formatRelativePath(f.name) || f.name) === previousValue)
-  ) {
+  if (previousValue && availableValues.has(previousValue)) {
     selectEl.value = previousValue;
+    placeholderOption.selected = false;
   }
 }
 
@@ -801,12 +849,25 @@ function applyParameterDefaults() {
 
 async function loadFlatFiles() {
   try {
-    const files = await apiFetch(`/files/list?prefix=${encodeURIComponent(INPUT_ROOT)}`);
-    allFilesFlat = Array.isArray(files) ? files : [];
+    const projectPromise = apiFetch(`/files/list?prefix=${encodeURIComponent(inputRoot)}`);
+    const sharedPromise =
+      currentProject !== DEFAULT_PROJECT
+        ? apiFetch(`/files/list?prefix=${encodeURIComponent('input/shared/')}`).catch((error) => {
+            console.warn('Unable to load shared prompts', error);
+            return [];
+          })
+        : Promise.resolve([]);
+    const [projectFiles, sharedFiles] = await Promise.all([projectPromise, sharedPromise]);
+    allFilesFlat = Array.isArray(projectFiles) ? projectFiles : [];
+    const sharedList = Array.isArray(sharedFiles) ? sharedFiles : [];
+    const combinedForPrompts = currentProject !== DEFAULT_PROJECT
+      ? mergeFileLists(allFilesFlat, sharedList)
+      : mergeFileLists(allFilesFlat);
+
     populateSelect(fileSelect, allFilesFlat, 'Select source file');
-    populateSelect(configSelect, allFilesFlat, 'Select config file');
-    populateSelect(sourcePromptSelect, allFilesFlat, 'Select source prompt');
-    populateSelect(selectPromptSelect, allFilesFlat, 'Select select prompt');
+    populateSelect(configSelect, combinedForPrompts, 'Select config file');
+    populateSelect(sourcePromptSelect, combinedForPrompts, 'Select source prompt');
+    populateSelect(selectPromptSelect, combinedForPrompts, 'Select select prompt');
     if (!hasInitialisedParams) {
       applyParameterDefaults();
       hasInitialisedParams = true;
@@ -819,6 +880,18 @@ async function loadFlatFiles() {
 
 function getBoolean(selectEl) {
   return selectEl?.value === 'true';
+}
+
+function deriveProjectForPayload() {
+  if (currentProject && currentProject !== DEFAULT_PROJECT) {
+    return currentProject;
+  }
+  const sourceValue = fileSelect?.value?.trim();
+  if (!sourceValue) {
+    return '';
+  }
+  const [firstSegment = ''] = sourceValue.split('/').filter(Boolean);
+  return firstSegment;
 }
 
 function updateParametersPreview() {
@@ -834,6 +907,10 @@ function updateParametersPreview() {
     mock_row_count: Number(mockRowCountInput?.value) || 200,
     auto_teardown: getBoolean(autoTeardownSelect),
   };
+  const resolvedProject = deriveProjectForPayload();
+  if (resolvedProject) {
+    payload.project = resolvedProject;
+  }
   parametersPreview.value = JSON.stringify(payload, null, 2);
 }
 
@@ -862,7 +939,7 @@ function toggleTriggerLoading(isLoading) {
 async function createFolder() {
   const name = folderNameInput?.value.trim();
   if (!name) {
-    showAlert('Please provide a folder name', 'warning');
+    showAlert('Please provide a project name', 'warning');
     return;
   }
   try {
@@ -874,10 +951,11 @@ async function createFolder() {
     folderNameInput.value = '';
     await loadList();
     if (result?.folder) {
-      showAlert(`Folder created: ${formatFriendlyPath(result.folder)}`, 'success');
+      showAlert(`Project created: ${formatFriendlyPath(result.folder)}`, 'success');
+      await refreshProjectsList();
     }
   } catch (error) {
-    showAlert(error.message || 'Failed to create folder');
+    showAlert(error.message || 'Failed to create project');
   }
 }
 
@@ -960,6 +1038,14 @@ function resetParameters() {
   updateParametersPreview();
 }
 
+function clearFileSelections() {
+  [fileSelect, configSelect, sourcePromptSelect, selectPromptSelect].forEach((selectEl) => {
+    if (selectEl) {
+      selectEl.value = '';
+    }
+  });
+}
+
 function attachEventListeners() {
   if (searchInput) {
     searchInput.addEventListener('input', () => {
@@ -1016,7 +1102,7 @@ function attachEventListeners() {
       const link = event.target.closest('a[data-prefix]');
       if (!link) return;
       event.preventDefault();
-      setCurrentPrefix(link.dataset.prefix ?? INPUT_ROOT);
+      setCurrentPrefix(link.dataset.prefix ?? inputRoot);
       loadList();
       resetPreview();
     });
@@ -1233,6 +1319,7 @@ async function deleteItem() {
 
 (async () => {
   try {
+    await initProjectControls();
     await ensureHealth();
     if (window.bootstrap) {
       bootstrapModal = new window.bootstrap.Modal(previewModalEl);
@@ -1252,9 +1339,31 @@ async function deleteItem() {
         }
       });
     }
-    setCurrentPrefix(INPUT_ROOT);
-    renderBreadcrumb();
-    await Promise.all([loadList(), loadFlatFiles()]);
+
+    const handleProjectChange = async (project) => {
+      currentProject = project;
+      inputRoot = resolveInputRoot(project);
+      setCurrentPrefix(inputRoot);
+      if (searchInput) {
+        searchInput.value = '';
+      }
+      currentPage = 1;
+      sortOverrideActive = false;
+      allItems = [];
+      filteredItems = [];
+      allFilesFlat = [];
+      hasInitialisedParams = false;
+      clearFileSelections();
+      resetPreview();
+      updateParametersPreview();
+      await Promise.all([loadList(), loadFlatFiles()]);
+    };
+
+    onProjectChange((project) => {
+      handleProjectChange(project).catch((error) => {
+        showAlert(error.message || 'Failed to load project assets');
+      });
+    }, { immediate: true });
   } catch (error) {
     showAlert('Backend unavailable. Please confirm the API is running.');
   }
