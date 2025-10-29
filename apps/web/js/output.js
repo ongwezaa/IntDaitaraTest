@@ -348,21 +348,27 @@ function renderBreadcrumb() {
     segments.push('output');
   }
 
-  let cumulative = basePrefix.replace(/\/$/, '');
+  let cumulative = '';
+  const isScopedProject = currentProject && currentProject !== DEFAULT_PROJECT;
   segments.forEach((segment, index) => {
     cumulative = cumulative ? `${cumulative}/${segment}` : segment;
     const li = document.createElement('li');
     const isLast = index === segments.length - 1;
+    const shouldLink = !isLast && (!isScopedProject || index >= 2);
     if (isLast) {
       li.className = 'breadcrumb-item active';
       li.textContent = formatSegmentLabel(segment);
     } else {
       li.className = 'breadcrumb-item';
-      const link = document.createElement('a');
-      link.href = '#';
-      link.textContent = formatSegmentLabel(segment);
-      link.dataset.prefix = `${cumulative}/`;
-      li.appendChild(link);
+      if (shouldLink) {
+        const link = document.createElement('a');
+        link.href = '#';
+        link.textContent = formatSegmentLabel(segment);
+        link.dataset.prefix = `${cumulative}/`;
+        li.appendChild(link);
+      } else {
+        li.textContent = formatSegmentLabel(segment);
+      }
     }
     ol.appendChild(li);
   });
