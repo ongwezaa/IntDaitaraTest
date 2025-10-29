@@ -39,6 +39,12 @@
               <li class="nav-item"><a class="nav-link" href="/status">Run History</a></li>
               <li class="nav-item"><a class="nav-link" href="/output">Output Browser</a></li>
             </ul>
+            <div class="project-selector mt-3 mt-lg-0">
+              <label class="form-label form-label-sm text-white-50 mb-1" for="projectSelect">Project</label>
+              <select class="form-select form-select-sm project-select" id="projectSelect" aria-label="Select project">
+                <option value="All">All</option>
+              </select>
+            </div>
             <div class="header-meta mt-3 mt-lg-0">
               <span class="version-badge">Version 0.1</span>
               <span class="space-orbit" role="img" aria-label="Spinning planet icon">
@@ -82,7 +88,7 @@
                 </div>
                 <button class="btn btn-soft text-nowrap" id="createFolderBtn" type="button">
                   <i class="bi bi-folder-plus me-1"></i>
-                  New folder
+                  New project
                 </button>
                 <div class="upload-control d-flex align-items-center gap-2">
                   <input class="form-control form-control-sm" type="file" id="uploadInput" />
@@ -257,16 +263,16 @@
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">Create folder</h5>
+            <h5 class="modal-title">Create project</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <label class="form-label" for="folderNameInput">Folder name</label>
+            <label class="form-label" for="folderNameInput">Project name</label>
             <input type="text" class="form-control" id="folderNameInput" placeholder="e.g. customer-metadata" />
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-gradient" id="createFolderConfirmBtn">Create folder</button>
+            <button type="button" class="btn btn-gradient" id="createFolderConfirmBtn">Create project</button>
           </div>
         </div>
       </div>
