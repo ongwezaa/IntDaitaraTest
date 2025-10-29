@@ -412,7 +412,7 @@ function renderBreadcrumb() {
     segments.push('input');
   }
 
-  let cumulative = '';
+  let cumulative = basePrefix.replace(/\/$/, '');
   segments.forEach((segment, index) => {
     cumulative = cumulative ? `${cumulative}/${segment}` : segment;
     const li = document.createElement('li');
