@@ -1,6 +1,9 @@
 import { API_BASE, apiFetch, ensureHealth } from './config.js';
+import { initProjectControls, onProjectChange, getSelectedProject, resolveOutputRoot, DEFAULT_PROJECT } from './projects.js';
 
-const OUTPUT_ROOT = '';
+const defaultOutputRoot = resolveOutputRoot(DEFAULT_PROJECT);
+let currentProject = getSelectedProject();
+let outputRoot = resolveOutputRoot(currentProject);
 
 const fileList = document.getElementById('fileList');
 const searchInput = document.getElementById('searchInput');
@@ -15,7 +18,7 @@ const copyPreviewLabel = copyPreviewBtn ? copyPreviewBtn.querySelector('.btn-cop
 const alertContainer = document.getElementById('alertContainer');
 const breadcrumb = document.getElementById('breadcrumb');
 
-let currentPrefix = OUTPUT_ROOT;
+let currentPrefix = outputRoot;
 let activePreview = { name: '', contentType: '' };
 let allItems = [];
 let filteredItems = [];
@@ -27,6 +30,9 @@ let searchDebounce;
 let lastPreviewText = '';
 let listRequestToken = 0;
 const copyButtonDefaultLabel = copyPreviewLabel ? copyPreviewLabel.textContent.trim() : 'Copy';
+
+const urlParams = new URLSearchParams(window.location.search);
+let pendingInitialPrefix = urlParams.get('prefix');
 
 function appendPreviewBlock(text) {
   if (!previewPane) return;
@@ -228,40 +234,41 @@ function formatSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function getParentPrefix(prefix) {
-  const normalised = normalisePrefix(prefix);
-  if (!normalised) {
-    return '';
+function clampToOutputRoot(prefix) {
+  const base = normalisePrefix(outputRoot);
+  const candidate = prefix ? normalisePrefix(prefix) : base;
+  if (!candidate.startsWith(base)) {
+    return base;
   }
-  if (normalised === OUTPUT_ROOT) {
-    return '';
-  }
-  const trimmed = normalised.replace(/\/$/, '');
-  const segments = trimmed.split('/').filter(Boolean);
-  if (segments.length <= 1) {
-    return '';
-  }
-  segments.pop();
-  return `${segments.join('/')}/`;
+  return candidate || base;
 }
 
-function getOutputSegments(prefix = '') {
-  const normalised = normalisePrefix(prefix);
-  if (!normalised) {
-    return [];
+function getParentPrefix(prefix) {
+  const normalised = clampToOutputRoot(prefix);
+  const base = normalisePrefix(outputRoot);
+  if (normalised === base) {
+    return base;
   }
   const trimmed = normalised.replace(/\/$/, '');
-  return trimmed ? trimmed.split('/').filter(Boolean) : [];
+  const lastSlash = trimmed.lastIndexOf('/');
+  if (lastSlash === -1) {
+    return base;
+  }
+  const candidate = `${trimmed.slice(0, lastSlash)}/`;
+  return candidate.startsWith(base) ? candidate : base;
 }
 
 function canGoUp() {
-  return normalisePrefix(currentPrefix) !== '';
+  return clampToOutputRoot(currentPrefix) !== normalisePrefix(outputRoot);
 }
 
 function updateUrl() {
   const url = new URL(window.location.href);
-  if (currentPrefix) {
-    url.searchParams.set('prefix', currentPrefix);
+  const base = clampToOutputRoot(outputRoot);
+  const defaultBase = normalisePrefix(defaultOutputRoot);
+  const current = clampToOutputRoot(currentPrefix);
+  if (current && (current !== base || base !== defaultBase)) {
+    url.searchParams.set('prefix', current);
   } else {
     url.searchParams.delete('prefix');
   }
@@ -318,28 +325,17 @@ function getFileIconInfo(name = '') {
 }
 
 function renderBreadcrumb() {
+  if (!breadcrumb) return;
   breadcrumb.innerHTML = '';
   const nav = document.createElement('nav');
   nav.setAttribute('aria-label', 'breadcrumb');
   const ol = document.createElement('ol');
   ol.className = 'breadcrumb mb-0';
 
-  const segments = getOutputSegments(currentPrefix);
-
-  if (segments.length) {
-    const rootLi = document.createElement('li');
-    rootLi.className = 'breadcrumb-item';
-    const rootLink = document.createElement('a');
-    rootLink.href = '#';
-    rootLink.textContent = 'root';
-    rootLink.dataset.prefix = '';
-    rootLi.appendChild(rootLink);
-    ol.appendChild(rootLi);
-  } else {
-    const rootOnly = document.createElement('li');
-    rootOnly.className = 'breadcrumb-item active';
-    rootOnly.textContent = 'root';
-    ol.appendChild(rootOnly);
+  const normalised = clampToOutputRoot(currentPrefix).replace(/\/$/, '');
+  const segments = normalised ? normalised.split('/').filter(Boolean) : [];
+  if (!segments.length) {
+    segments.push('output');
   }
 
   let cumulative = '';
@@ -655,7 +651,7 @@ async function previewBlob(name) {
 }
 
 function setCurrentPrefix(prefix) {
-  currentPrefix = normalisePrefix(prefix);
+  currentPrefix = clampToOutputRoot(prefix);
   sortOverrideActive = false;
   renderBreadcrumb();
   updateUrl();
@@ -727,7 +723,7 @@ breadcrumb.addEventListener('click', (event) => {
   const link = event.target.closest('a[data-prefix]');
   if (!link) return;
   event.preventDefault();
-  setCurrentPrefix(link.dataset.prefix ?? OUTPUT_ROOT);
+  setCurrentPrefix(link.dataset.prefix ?? outputRoot);
   loadList();
   resetPreview();
 });
@@ -785,11 +781,38 @@ if (copyPreviewBtn) {
 (async () => {
   try {
     await ensureHealth();
-    const params = new URLSearchParams(window.location.search);
-    const paramValue = params.get('prefix');
-    const prefix = paramValue === null ? OUTPUT_ROOT : paramValue;
-    setCurrentPrefix(prefix);
-    await loadList();
+await initProjectControls();
+await ensureHealth();
+const handleProjectChange = async (project) => {
+  currentProject = project;
+  outputRoot = resolveOutputRoot(project);
+  const base = clampToOutputRoot(outputRoot);
+  let nextPrefix = base;
+  if (pendingInitialPrefix) {
+    const candidate = normalisePrefix(pendingInitialPrefix);
+    if (candidate && candidate.startsWith(base)) {
+      nextPrefix = candidate;
+    }
+    pendingInitialPrefix = null;
+  }
+  setCurrentPrefix(nextPrefix);
+  if (searchInput) {
+    searchInput.value = '';
+  }
+  currentPage = 1;
+  sortOverrideActive = false;
+  allItems = [];
+  filteredItems = [];
+  resetPreview();
+  applyFilters({ resetPage: true });
+  await loadList();
+};
+
+onProjectChange((project) => {
+  handleProjectChange(project).catch((error) => {
+    showAlert(error.message || 'Failed to load output files');
+  });
+}, { immediate: true });
   } catch (error) {
     showAlert('Backend unavailable. Please confirm the API is running.');
   }
