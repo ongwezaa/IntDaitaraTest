@@ -252,6 +252,20 @@ function formatRelativePath(path = '') {
   return trimmed;
 }
 
+function stripInputPrefix(path = '') {
+  if (!path || typeof path !== 'string') {
+    return '';
+  }
+  const trimmed = path.trim().replace(/^\.\//, '');
+  if (!trimmed || trimmed === 'input') {
+    return '';
+  }
+  if (trimmed.startsWith('input/')) {
+    return trimmed.slice('input/'.length);
+  }
+  return trimmed;
+}
+
 function mergeFileLists(...lists) {
   const seen = new Set();
   const merged = [];
@@ -847,6 +861,17 @@ function getSelectPathData(selectEl) {
   };
 }
 
+function resolvePayloadPath(pathData) {
+  if (!pathData) {
+    return '';
+  }
+  const fullPath = stripInputPrefix(pathData.fullPath);
+  if (fullPath) {
+    return fullPath;
+  }
+  return stripInputPrefix(pathData.relativePath);
+}
+
 function applyParameterDefaults() {
   if (targetTypeSelect && targetTypeSelect.querySelector('option[value="Postgres"]')) {
     targetTypeSelect.value = 'Postgres';
@@ -919,10 +944,10 @@ function updateParametersPreview() {
   const sourcePromptPaths = getSelectPathData(sourcePromptSelect);
   const selectPromptPaths = getSelectPathData(selectPromptSelect);
   const payload = {
-    file: filePaths.fullPath || filePaths.relativePath || '',
-    config: configPaths.fullPath || configPaths.relativePath || '',
-    sourceMappingPrompt: sourcePromptPaths.fullPath || sourcePromptPaths.relativePath || '',
-    selectMappingPrompt: selectPromptPaths.fullPath || selectPromptPaths.relativePath || '',
+    file: resolvePayloadPath(filePaths),
+    config: resolvePayloadPath(configPaths),
+    sourceMappingPrompt: resolvePayloadPath(sourcePromptPaths),
+    selectMappingPrompt: resolvePayloadPath(selectPromptPaths),
     target_type: targetTypeSelect?.value || 'Postgres',
     target_env: targetEnvSelect?.value || 'DEV',
     generate_ddl: getBoolean(generateDdlSelect),
