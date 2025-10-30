@@ -252,6 +252,20 @@ function formatRelativePath(path = '') {
   return trimmed;
 }
 
+function stripInputPrefix(path = '') {
+  if (!path || typeof path !== 'string') {
+    return '';
+  }
+  const trimmed = path.trim().replace(/^\.\//, '');
+  if (!trimmed || trimmed === 'input') {
+    return '';
+  }
+  if (trimmed.startsWith('input/')) {
+    return trimmed.slice('input/'.length);
+  }
+  return trimmed;
+}
+
 function mergeFileLists(...lists) {
   const seen = new Set();
   const merged = [];
@@ -819,6 +833,8 @@ function populateSelect(selectEl, files, placeholder) {
     const option = document.createElement('option');
     option.value = relativeName;
     option.textContent = relativeName;
+    option.dataset.relativePath = relativeName;
+    option.dataset.fullPath = file.name;
     selectEl.appendChild(option);
     availableValues.add(relativeName);
   });
@@ -827,6 +843,33 @@ function populateSelect(selectEl, files, placeholder) {
     selectEl.value = previousValue;
     placeholderOption.selected = false;
   }
+}
+
+function getSelectPathData(selectEl) {
+  if (!selectEl) {
+    return { relativePath: '', fullPath: '' };
+  }
+  const selectedOption = selectEl.options?.[selectEl.selectedIndex] || null;
+  const relativePath =
+    (selectedOption?.dataset?.relativePath && selectedOption.dataset.relativePath.trim()) ||
+    (selectEl.value ? selectEl.value.trim() : '');
+  const fullPath =
+    (selectedOption?.dataset?.fullPath && selectedOption.dataset.fullPath.trim()) || '';
+  return {
+    relativePath,
+    fullPath,
+  };
+}
+
+function resolvePayloadPath(pathData) {
+  if (!pathData) {
+    return '';
+  }
+  const fullPath = stripInputPrefix(pathData.fullPath);
+  if (fullPath) {
+    return fullPath;
+  }
+  return stripInputPrefix(pathData.relativePath);
 }
 
 function applyParameterDefaults() {
@@ -886,7 +929,7 @@ function deriveProjectForPayload() {
   if (currentProject && currentProject !== DEFAULT_PROJECT) {
     return currentProject;
   }
-  const sourceValue = fileSelect?.value?.trim();
+  const { relativePath: sourceValue } = getSelectPathData(fileSelect);
   if (!sourceValue) {
     return '';
   }
@@ -896,11 +939,15 @@ function deriveProjectForPayload() {
 
 function updateParametersPreview() {
   if (!parametersPreview) return;
+  const filePaths = getSelectPathData(fileSelect);
+  const configPaths = getSelectPathData(configSelect);
+  const sourcePromptPaths = getSelectPathData(sourcePromptSelect);
+  const selectPromptPaths = getSelectPathData(selectPromptSelect);
   const payload = {
-    file: fileSelect?.value || '',
-    config: configSelect?.value || '',
-    sourceMappingPrompt: sourcePromptSelect?.value || '',
-    selectMappingPrompt: selectPromptSelect?.value || '',
+    file: resolvePayloadPath(filePaths),
+    config: resolvePayloadPath(configPaths),
+    sourceMappingPrompt: resolvePayloadPath(sourcePromptPaths),
+    selectMappingPrompt: resolvePayloadPath(selectPromptPaths),
     target_type: targetTypeSelect?.value || 'Postgres',
     target_env: targetEnvSelect?.value || 'DEV',
     generate_ddl: getBoolean(generateDdlSelect),
