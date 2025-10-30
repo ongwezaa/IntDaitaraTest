@@ -819,6 +819,8 @@ function populateSelect(selectEl, files, placeholder) {
     const option = document.createElement('option');
     option.value = relativeName;
     option.textContent = relativeName;
+    option.dataset.relativePath = relativeName;
+    option.dataset.fullPath = file.name;
     selectEl.appendChild(option);
     availableValues.add(relativeName);
   });
@@ -827,6 +829,22 @@ function populateSelect(selectEl, files, placeholder) {
     selectEl.value = previousValue;
     placeholderOption.selected = false;
   }
+}
+
+function getSelectPathData(selectEl) {
+  if (!selectEl) {
+    return { relativePath: '', fullPath: '' };
+  }
+  const selectedOption = selectEl.options?.[selectEl.selectedIndex] || null;
+  const relativePath =
+    (selectedOption?.dataset?.relativePath && selectedOption.dataset.relativePath.trim()) ||
+    (selectEl.value ? selectEl.value.trim() : '');
+  const fullPath =
+    (selectedOption?.dataset?.fullPath && selectedOption.dataset.fullPath.trim()) || '';
+  return {
+    relativePath,
+    fullPath,
+  };
 }
 
 function applyParameterDefaults() {
@@ -886,7 +904,7 @@ function deriveProjectForPayload() {
   if (currentProject && currentProject !== DEFAULT_PROJECT) {
     return currentProject;
   }
-  const sourceValue = fileSelect?.value?.trim();
+  const { relativePath: sourceValue } = getSelectPathData(fileSelect);
   if (!sourceValue) {
     return '';
   }
@@ -896,11 +914,15 @@ function deriveProjectForPayload() {
 
 function updateParametersPreview() {
   if (!parametersPreview) return;
+  const filePaths = getSelectPathData(fileSelect);
+  const configPaths = getSelectPathData(configSelect);
+  const sourcePromptPaths = getSelectPathData(sourcePromptSelect);
+  const selectPromptPaths = getSelectPathData(selectPromptSelect);
   const payload = {
-    file: fileSelect?.value || '',
-    config: configSelect?.value || '',
-    sourceMappingPrompt: sourcePromptSelect?.value || '',
-    selectMappingPrompt: selectPromptSelect?.value || '',
+    file: filePaths.fullPath || filePaths.relativePath || '',
+    config: configPaths.fullPath || configPaths.relativePath || '',
+    sourceMappingPrompt: sourcePromptPaths.fullPath || sourcePromptPaths.relativePath || '',
+    selectMappingPrompt: selectPromptPaths.fullPath || selectPromptPaths.relativePath || '',
     target_type: targetTypeSelect?.value || 'Postgres',
     target_env: targetEnvSelect?.value || 'DEV',
     generate_ddl: getBoolean(generateDdlSelect),
