@@ -37,8 +37,7 @@ const deleteTargetName = document.getElementById('deleteTargetName');
 
 const fileSelect = document.getElementById('fileSelect');
 const configSelect = document.getElementById('configSelect');
-const sourcePromptSelect = document.getElementById('sourcePromptSelect');
-const selectPromptSelect = document.getElementById('selectPromptSelect');
+const testTemplateSelect = document.getElementById('testTemplateSelect');
 const targetTypeSelect = document.getElementById('targetType');
 const targetEnvSelect = document.getElementById('targetEnv');
 const mockRowCountInput = document.getElementById('mockRowCount');
@@ -845,6 +844,43 @@ function populateSelect(selectEl, files, placeholder) {
   }
 }
 
+function populateTestTemplateSelect(selectEl, files) {
+  if (!selectEl) return;
+  const previousValue = selectEl.value;
+  selectEl.innerHTML = '';
+  const defaultOption = document.createElement('option');
+  defaultOption.value = '';
+  defaultOption.textContent = 'Default template';
+  defaultOption.dataset.relativePath = '';
+  defaultOption.dataset.fullPath = '';
+  selectEl.appendChild(defaultOption);
+
+  const availableValues = new Set(['']);
+
+  (Array.isArray(files) ? files : []).forEach((file) => {
+    if (!file || file.kind !== 'file' || typeof file.name !== 'string') {
+      return;
+    }
+    const relativeName = formatRelativePath(file.name) || file.name;
+    if (!relativeName) {
+      return;
+    }
+    const option = document.createElement('option');
+    option.value = relativeName;
+    option.textContent = relativeName;
+    option.dataset.relativePath = relativeName;
+    option.dataset.fullPath = file.name;
+    selectEl.appendChild(option);
+    availableValues.add(relativeName);
+  });
+
+  if (availableValues.has(previousValue)) {
+    selectEl.value = previousValue;
+  } else {
+    selectEl.value = '';
+  }
+}
+
 function getSelectPathData(selectEl) {
   if (!selectEl) {
     return { relativePath: '', fullPath: '' };
@@ -888,6 +924,9 @@ function applyParameterDefaults() {
   if (generateDdlSelect && generateDdlSelect.querySelector('option[value="true"]')) {
     generateDdlSelect.value = 'true';
   }
+  if (testTemplateSelect) {
+    testTemplateSelect.value = '';
+  }
 }
 
 async function loadFlatFiles() {
@@ -903,14 +942,13 @@ async function loadFlatFiles() {
     const [projectFiles, sharedFiles] = await Promise.all([projectPromise, sharedPromise]);
     allFilesFlat = Array.isArray(projectFiles) ? projectFiles : [];
     const sharedList = Array.isArray(sharedFiles) ? sharedFiles : [];
-    const combinedForPrompts = currentProject !== DEFAULT_PROJECT
+    const combinedForTemplates = currentProject !== DEFAULT_PROJECT
       ? mergeFileLists(allFilesFlat, sharedList)
       : mergeFileLists(allFilesFlat);
 
     populateSelect(fileSelect, allFilesFlat, 'Select source file');
-    populateSelect(configSelect, combinedForPrompts, 'Select config file');
-    populateSelect(sourcePromptSelect, combinedForPrompts, 'Select source prompt');
-    populateSelect(selectPromptSelect, combinedForPrompts, 'Select select prompt');
+    populateSelect(configSelect, combinedForTemplates, 'Select config file');
+    populateTestTemplateSelect(testTemplateSelect, combinedForTemplates);
     if (!hasInitialisedParams) {
       applyParameterDefaults();
       hasInitialisedParams = true;
@@ -923,6 +961,11 @@ async function loadFlatFiles() {
 
 function getBoolean(selectEl) {
   return selectEl?.value === 'true';
+}
+
+function normaliseTargetType(value) {
+  const normalised = (value || '').toString().toLowerCase().replace(/[^a-z0-9]+/g, '');
+  return normalised || 'postgres';
 }
 
 function deriveProjectForPayload() {
@@ -941,19 +984,27 @@ function updateParametersPreview() {
   if (!parametersPreview) return;
   const filePaths = getSelectPathData(fileSelect);
   const configPaths = getSelectPathData(configSelect);
-  const sourcePromptPaths = getSelectPathData(sourcePromptSelect);
-  const selectPromptPaths = getSelectPathData(selectPromptSelect);
+  const testTemplatePaths = getSelectPathData(testTemplateSelect);
+  const targetType = targetTypeSelect?.value || 'Postgres';
+  const targetTypeSlug = normaliseTargetType(targetType);
   const payload = {
     file: resolvePayloadPath(filePaths),
     config: resolvePayloadPath(configPaths),
-    sourceMappingPrompt: resolvePayloadPath(sourcePromptPaths),
-    selectMappingPrompt: resolvePayloadPath(selectPromptPaths),
-    target_type: targetTypeSelect?.value || 'Postgres',
+    sourceMappingPrompt: `shared/prompt/source_prompt_${targetTypeSlug}.txt`,
+    selectMappingPrompt: `shared/prompt/select_prompt_${targetTypeSlug}.txt`,
+    target_type: targetType,
     target_env: targetEnvSelect?.value || 'DEV',
     generate_ddl: getBoolean(generateDdlSelect),
     mock_row_count: Number(mockRowCountInput?.value) || 200,
     auto_teardown: getBoolean(autoTeardownSelect),
   };
+  const testTemplatePath = resolvePayloadPath(testTemplatePaths);
+  if (testTemplatePath) {
+    payload.test_template = true;
+    payload.test_template_path = testTemplatePath;
+  } else {
+    payload.test_template = false;
+  }
   const resolvedProject = deriveProjectForPayload();
   if (resolvedProject) {
     payload.project = resolvedProject;
@@ -1076,7 +1127,7 @@ async function triggerLogicApp() {
 
 function resetParameters() {
   hasInitialisedParams = true;
-  [fileSelect, configSelect, sourcePromptSelect, selectPromptSelect].forEach((selectEl) => {
+  [fileSelect, configSelect, testTemplateSelect].forEach((selectEl) => {
     if (selectEl) {
       selectEl.value = '';
     }
@@ -1086,7 +1137,7 @@ function resetParameters() {
 }
 
 function clearFileSelections() {
-  [fileSelect, configSelect, sourcePromptSelect, selectPromptSelect].forEach((selectEl) => {
+  [fileSelect, configSelect, testTemplateSelect].forEach((selectEl) => {
     if (selectEl) {
       selectEl.value = '';
     }
@@ -1262,7 +1313,7 @@ function attachEventListeners() {
     deleteConfirmBtn.addEventListener('click', deleteItem);
   }
 
-  [fileSelect, configSelect, sourcePromptSelect, selectPromptSelect, targetTypeSelect, targetEnvSelect, mockRowCountInput, autoTeardownSelect, generateDdlSelect]
+  [fileSelect, configSelect, testTemplateSelect, targetTypeSelect, targetEnvSelect, mockRowCountInput, autoTeardownSelect, generateDdlSelect]
     .forEach((el) => {
       if (!el) return;
       el.addEventListener('change', updateParametersPreview);
@@ -1311,7 +1362,7 @@ async function renameItem() {
         setCurrentPrefix(`${nextPrefix}${suffix}`);
       }
     } else if (renameContext.kind === 'file' && typeof newPath === 'string') {
-      [fileSelect, configSelect, sourcePromptSelect, selectPromptSelect].forEach((selectEl) => {
+      [fileSelect, configSelect, testTemplateSelect].forEach((selectEl) => {
         if (selectEl && selectEl.value === renameContext.path) {
           selectEl.value = newPath;
         }
@@ -1346,7 +1397,7 @@ async function deleteItem() {
         setCurrentPrefix(getParentPrefix(targetPrefix));
       }
     } else if (deleteContext.kind === 'file') {
-      [fileSelect, configSelect, sourcePromptSelect, selectPromptSelect].forEach((selectEl) => {
+      [fileSelect, configSelect, testTemplateSelect].forEach((selectEl) => {
         if (selectEl && selectEl.value === deleteContext.path) {
           selectEl.value = '';
         }
