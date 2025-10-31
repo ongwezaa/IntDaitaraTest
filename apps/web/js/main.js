@@ -994,8 +994,8 @@ function updateParametersPreview() {
   const payload = {
     file: resolvePayloadPath(filePaths),
     config: resolvePayloadPath(configPaths),
-    sourceMappingPrompt: `shared/prompt/source_prompt_${targetTypeSlug}.txt`,
-    selectMappingPrompt: `shared/prompt/select_prompt_${targetTypeSlug}.txt`,
+    sourceMappingPrompt: `shared/prompts/source_prompt_${targetTypeSlug}.txt`,
+    selectMappingPrompt: `shared/prompts/select_prompt_${targetTypeSlug}.txt`,
     target_type: targetType,
     target_env: targetEnvSelect?.value || 'DEV',
     generate_ddl: getBoolean(generateDdlSelect),
