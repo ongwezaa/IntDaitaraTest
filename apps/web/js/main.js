@@ -43,6 +43,7 @@ const targetEnvSelect = document.getElementById('targetEnv');
 const mockRowCountInput = document.getElementById('mockRowCount');
 const autoTeardownSelect = document.getElementById('autoTeardown');
 const generateDdlSelect = document.getElementById('generateDdl');
+const executionParametersInput = document.getElementById('executionParameters');
 const parametersPreview = document.getElementById('parametersPreview');
 const triggerBtn = document.getElementById('triggerBtn');
 const triggerSpinner = document.getElementById('triggerSpinner');
@@ -927,6 +928,9 @@ function applyParameterDefaults() {
   if (testTemplateSelect) {
     testTemplateSelect.value = '';
   }
+  if (executionParametersInput) {
+    executionParametersInput.value = '';
+  }
 }
 
 async function loadFlatFiles() {
@@ -1008,6 +1012,10 @@ function updateParametersPreview() {
   const resolvedProject = deriveProjectForPayload();
   if (resolvedProject) {
     payload.project = resolvedProject;
+  }
+  const executionParameterValue = executionParametersInput?.value?.trim();
+  if (executionParameterValue) {
+    payload.execution_parameter = executionParameterValue;
   }
   parametersPreview.value = JSON.stringify(payload, null, 2);
 }
@@ -1133,6 +1141,9 @@ function resetParameters() {
     }
   });
   applyParameterDefaults();
+  if (executionParametersInput) {
+    executionParametersInput.value = '';
+  }
   updateParametersPreview();
 }
 
@@ -1321,6 +1332,10 @@ function attachEventListeners() {
         el.addEventListener('input', updateParametersPreview);
       }
     });
+
+  if (executionParametersInput) {
+    executionParametersInput.addEventListener('input', updateParametersPreview);
+  }
 
   if (parametersPreview) {
     parametersPreview.addEventListener('input', () => {
