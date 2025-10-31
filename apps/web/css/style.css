@@ -275,12 +275,27 @@ main {
 }
 
 .parameter-row {
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
 
 .parameter-stack {
   display: flex;
   flex-direction: column;
+}
+
+.parameter-section + .parameter-section {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.parameter-section-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0f172a;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.5rem;
 }
 
 .parameter-stack .parameter-row:last-of-type {
