@@ -283,6 +283,19 @@ main {
   flex-direction: column;
 }
 
+.parameter-section + .parameter-section {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.parameter-section-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.75rem;
+}
+
 .parameter-stack .parameter-row:last-of-type {
   margin-bottom: 0;
 }

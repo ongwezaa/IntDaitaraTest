@@ -142,68 +142,85 @@
           <div class="row g-4 align-items-start trigger-grid">
             <div class="col-12 col-xl-6">
               <div class="parameter-stack">
-                <div class="parameter-row row g-3 align-items-center">
-                  <label class="col-12 col-lg-4 col-form-label text-start text-lg-start parameter-label" for="fileSelect">Source file</label>
-                  <div class="col-12 col-lg-8">
-                    <select class="form-select" id="fileSelect"></select>
+                <div class="parameter-section">
+                  <h3 class="parameter-section-title">Input Files</h3>
+                  <div class="parameter-row row g-3 align-items-center">
+                    <label class="col-12 col-lg-4 col-form-label text-start text-lg-start parameter-label" for="fileSelect">Source file</label>
+                    <div class="col-12 col-lg-8">
+                      <select class="form-select" id="fileSelect"></select>
+                    </div>
+                  </div>
+                  <div class="parameter-row row g-3 align-items-center">
+                    <label class="col-12 col-lg-4 col-form-label text-start text-lg-start parameter-label" for="configSelect">Config file</label>
+                    <div class="col-12 col-lg-8">
+                      <select class="form-select" id="configSelect"></select>
+                    </div>
                   </div>
                 </div>
-                <div class="parameter-row row g-3 align-items-center">
-                  <label class="col-12 col-lg-4 col-form-label text-start text-lg-start parameter-label" for="configSelect">Config file</label>
-                  <div class="col-12 col-lg-8">
-                    <select class="form-select" id="configSelect"></select>
+
+                <div class="parameter-section">
+                  <h3 class="parameter-section-title">Environment</h3>
+                  <div class="parameter-row row g-3 align-items-center">
+                    <label class="col-12 col-lg-4 col-form-label text-start text-lg-start parameter-label" for="targetType">Target type</label>
+                    <div class="col-12 col-lg-8">
+                      <select class="form-select" id="targetType">
+                        <option value="Postgres">Postgres</option>
+                        <option value="Databricks">Databricks</option>
+                        <option value="SQL Server">SQL Server</option>
+                        <option value="BigQuery">BigQuery</option>
+                        <option value="Redshift">Redshift</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="parameter-row row g-3 align-items-center">
+                    <label class="col-12 col-lg-4 col-form-label text-start text-lg-start parameter-label" for="targetEnv">Target environment</label>
+                    <div class="col-12 col-lg-8">
+                      <select class="form-select" id="targetEnv">
+                        <option value="DEV">DEV</option>
+                        <option value="UAT">UAT</option>
+                        <option value="PROD">PROD</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="parameter-row row g-3 align-items-center">
+                    <label class="col-12 col-lg-4 col-form-label text-start text-lg-start parameter-label" for="generateDdl">Generate DDL</label>
+                    <div class="col-12 col-lg-8">
+                      <select class="form-select" id="generateDdl">
+                        <option value="true">true</option>
+                        <option value="false">false</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="parameter-row row g-3 align-items-center">
+                    <label class="col-12 col-lg-4 col-form-label text-start text-lg-start parameter-label" for="mockRowCount">Mock row count</label>
+                    <div class="col-12 col-lg-8">
+                      <input type="number" class="form-control" id="mockRowCount" min="1" value="200" />
+                    </div>
+                  </div>
+                  <div class="parameter-row row g-3 align-items-center">
+                    <label class="col-12 col-lg-4 col-form-label text-start text-lg-start parameter-label" for="autoTeardown">Auto teardown</label>
+                    <div class="col-12 col-lg-8">
+                      <select class="form-select" id="autoTeardown">
+                        <option value="false">false</option>
+                        <option value="true">true</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
-                <div class="parameter-row row g-3 align-items-center">
-                  <label class="col-12 col-lg-4 col-form-label text-start text-lg-start parameter-label" for="testTemplateSelect">Test template</label>
-                  <div class="col-12 col-lg-8">
-                    <select class="form-select" id="testTemplateSelect"></select>
+
+                <div class="parameter-section">
+                  <h3 class="parameter-section-title">Test setting</h3>
+                  <div class="parameter-row row g-3 align-items-center">
+                    <label class="col-12 col-lg-4 col-form-label text-start text-lg-start parameter-label" for="testTemplateSelect">Test template</label>
+                    <div class="col-12 col-lg-8">
+                      <select class="form-select" id="testTemplateSelect"></select>
+                    </div>
                   </div>
-                </div>
-                <div class="parameter-row row g-3 align-items-center">
-                  <label class="col-12 col-lg-4 col-form-label text-start text-lg-start parameter-label" for="targetType">Target type</label>
-                  <div class="col-12 col-lg-8">
-                    <select class="form-select" id="targetType">
-                      <option value="Postgres">Postgres</option>
-                      <option value="Databricks">Databricks</option>
-                      <option value="SQL Server">SQL Server</option>
-                      <option value="BigQuery">BigQuery</option>
-                      <option value="Redshift">Redshift</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="parameter-row row g-3 align-items-center">
-                  <label class="col-12 col-lg-4 col-form-label text-start text-lg-start parameter-label" for="targetEnv">Target environment</label>
-                  <div class="col-12 col-lg-8">
-                    <select class="form-select" id="targetEnv">
-                      <option value="DEV">DEV</option>
-                      <option value="UAT">UAT</option>
-                      <option value="PROD">PROD</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="parameter-row row g-3 align-items-center">
-                  <label class="col-12 col-lg-4 col-form-label text-start text-lg-start parameter-label" for="generateDdl">Generate DDL</label>
-                  <div class="col-12 col-lg-8">
-                    <select class="form-select" id="generateDdl">
-                      <option value="true">true</option>
-                      <option value="false">false</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="parameter-row row g-3 align-items-center">
-                  <label class="col-12 col-lg-4 col-form-label text-start text-lg-start parameter-label" for="mockRowCount">Mock row count</label>
-                  <div class="col-12 col-lg-8">
-                    <input type="number" class="form-control" id="mockRowCount" min="1" value="200" />
-                  </div>
-                </div>
-                <div class="parameter-row row g-3 align-items-center">
-                  <label class="col-12 col-lg-4 col-form-label text-start text-lg-start parameter-label" for="autoTeardown">Auto teardown</label>
-                  <div class="col-12 col-lg-8">
-                    <select class="form-select" id="autoTeardown">
-                      <option value="false">false</option>
-                      <option value="true">true</option>
-                    </select>
+                  <div class="parameter-row row g-3 align-items-center">
+                    <label class="col-12 col-lg-4 col-form-label text-start text-lg-start parameter-label" for="executionParameters">Execution parameters</label>
+                    <div class="col-12 col-lg-8">
+                      <input type="text" class="form-control" id="executionParameters" autocomplete="off" />
+                    </div>
                   </div>
                 </div>
               </div>
