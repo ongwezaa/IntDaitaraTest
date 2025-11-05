@@ -379,6 +379,7 @@ function renderBreadcrumb() {
 
 function resetPreview(message = 'Select a file to preview') {
   previewPane.textContent = message;
+  previewPane.classList.remove('preview-pane-html');
   activePreview = { name: '', contentType: '' };
   lastPreviewText = '';
   if (copyPreviewBtn) {
@@ -558,7 +559,22 @@ function updateSortIndicators() {
 
 function renderPreview(content, contentType) {
   previewPane.innerHTML = '';
+  previewPane.classList.remove('preview-pane-html');
   const lowerContentType = (contentType || '').toLowerCase();
+
+  const isHtmlPreview =
+    lowerContentType.includes('text/html') || /\.(html?)$/i.test(activePreview.name || '');
+
+  if (isHtmlPreview) {
+    previewPane.classList.add('preview-pane-html');
+    const iframe = document.createElement('iframe');
+    iframe.className = 'preview-iframe';
+    iframe.setAttribute('sandbox', '');
+    iframe.setAttribute('referrerpolicy', 'no-referrer');
+    iframe.srcdoc = content;
+    previewPane.appendChild(iframe);
+    return content;
+  }
 
   if (lowerContentType.includes('application/json')) {
     try {
@@ -631,6 +647,7 @@ async function loadList() {
 async function previewBlob(name) {
   activePreview = { name, contentType: '' };
   previewPane.textContent = 'Loading preview...';
+  previewPane.classList.remove('preview-pane-html');
   lastPreviewText = '';
   if (copyPreviewBtn) {
     copyPreviewBtn.disabled = true;
@@ -640,6 +657,7 @@ async function previewBlob(name) {
     const response = await fetch(`${API_BASE}/output/preview?blob=${encodeURIComponent(name)}`);
     if (response.status === 413) {
       previewPane.textContent = 'File is too large or not previewable. Please download instead.';
+      previewPane.classList.remove('preview-pane-html');
       lastPreviewText = '';
       return;
     }
@@ -657,6 +675,7 @@ async function previewBlob(name) {
     }
   } catch (error) {
     previewPane.textContent = 'Preview failed.';
+    previewPane.classList.remove('preview-pane-html');
     lastPreviewText = '';
     if (copyPreviewBtn) {
       copyPreviewBtn.disabled = true;
