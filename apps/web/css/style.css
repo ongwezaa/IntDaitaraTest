@@ -398,6 +398,15 @@ main {
   box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.35);
 }
 
+.preview-pane.preview-pane-html {
+  background: #ffffff;
+  color: #0f172a;
+  white-space: normal;
+  font-family: var(--bs-body-font-family, 'Inter', 'Helvetica Neue', Arial, sans-serif);
+  padding-top: 1.25rem;
+  overflow: hidden;
+}
+
 .preview-pane::-webkit-scrollbar {
   width: 8px;
 }
@@ -442,6 +451,16 @@ main {
   max-height: none;
   overflow: visible;
   font-family: 'Fira Code', 'Source Code Pro', Consolas, Monaco, 'Courier New', monospace;
+  box-shadow: none;
+}
+
+.preview-pane.preview-pane-html .preview-iframe {
+  width: 100%;
+  min-height: 320px;
+  height: 55vh;
+  border: none;
+  border-radius: 0;
+  background: transparent;
   box-shadow: none;
 }
 
