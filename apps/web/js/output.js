@@ -41,6 +41,123 @@ let lastPreviewText = '';
 let listRequestToken = 0;
 const copyButtonDefaultLabel = copyPreviewLabel ? copyPreviewLabel.textContent.trim() : 'Copy';
 
+const htmlPreviewStyles = `
+  <style>
+    :root {
+      color-scheme: light;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: #0f172a;
+      background: transparent;
+      margin: 0;
+      padding: 1.5rem;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      color: #0f172a;
+      font-weight: 600;
+      margin-top: 1.5rem;
+      margin-bottom: 0.75rem;
+      line-height: 1.3;
+    }
+
+    h1 { font-size: 1.9rem; }
+    h2 { font-size: 1.6rem; }
+    h3 { font-size: 1.35rem; }
+    h4 { font-size: 1.2rem; }
+    h5 { font-size: 1.05rem; }
+    h6 { font-size: 0.95rem; }
+
+    p,
+    ul,
+    ol {
+      margin-bottom: 1rem;
+    }
+
+    a {
+      color: #2563eb;
+      text-decoration: none;
+    }
+
+    a:hover,
+    a:focus {
+      text-decoration: underline;
+    }
+
+    pre,
+    code {
+      font-family: 'Fira Code', 'Source Code Pro', Consolas, Monaco, 'Courier New', monospace;
+    }
+
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 0.75rem;
+      padding: 1rem 1.25rem;
+      overflow: auto;
+    }
+
+    code {
+      background: rgba(15, 23, 42, 0.08);
+      color: #0f172a;
+      border-radius: 0.4rem;
+      padding: 0.1rem 0.4rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1.25rem;
+    }
+
+    th,
+    td {
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      padding: 0.6rem 0.75rem;
+      text-align: left;
+    }
+
+    img,
+    video,
+    canvas,
+    svg {
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+  </style>
+`;
+
+function buildHtmlPreviewDocument(content) {
+  const trimmed = (content || '').trim();
+  if (!trimmed) {
+    return `<!DOCTYPE html><html><head>${htmlPreviewStyles}</head><body></body></html>`;
+  }
+
+  if (/<head[\s>]/i.test(trimmed)) {
+    return trimmed.replace(/<\/head>/i, `${htmlPreviewStyles}</head>`);
+  }
+
+  if (/<html[\s>]/i.test(trimmed)) {
+    return trimmed.replace(/<html([^>]*)>/i, `<html$1><head>${htmlPreviewStyles}</head>`);
+  }
+
+  if (/<body[\s>]/i.test(trimmed)) {
+    return `<!DOCTYPE html><html><head>${htmlPreviewStyles}</head>${trimmed}</html>`;
+  }
+
+  return `<!DOCTYPE html><html><head>${htmlPreviewStyles}</head><body>${trimmed}</body></html>`;
+}
+
 const urlParams = new URLSearchParams(window.location.search);
 let pendingInitialPrefix = urlParams.get('prefix');
 
@@ -571,7 +688,7 @@ function renderPreview(content, contentType) {
     iframe.className = 'preview-iframe';
     iframe.setAttribute('sandbox', '');
     iframe.setAttribute('referrerpolicy', 'no-referrer');
-    iframe.srcdoc = content;
+    iframe.srcdoc = buildHtmlPreviewDocument(content);
     previewPane.appendChild(iframe);
     return content;
   }
