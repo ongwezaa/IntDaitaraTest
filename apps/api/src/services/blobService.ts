@@ -6,11 +6,8 @@ import {
   generateBlobSASQueryParameters,
   BlobDownloadResponseParsed,
 } from '@azure/storage-blob';
-import { PassThrough } from 'node:stream';
-import path from 'node:path';
-import { tmpdir } from 'node:os';
-import { mkdtemp, mkdir, rm } from 'node:fs/promises';
-import { spawn } from 'node:child_process';
+import { PassThrough, Readable } from 'node:stream';
+import archiver from 'archiver';
 import mime from 'mime-types';
 import { appConfig } from '../config.js';
 import { ListBlobItem } from '../types.js';
@@ -259,52 +256,57 @@ export async function getBlobDownload(blobPath: string): Promise<BlobDownloadRes
 export async function streamPrefixAsZip(prefix: string): Promise<{ stream: NodeJS.ReadableStream | null; fileCount: number }> {
   const container = getContainer();
   const normalisedPrefix = normalisePrefix(prefix);
-  const workingDir = await mkdtemp(path.join(tmpdir(), 'daitara-output-'));
   let fileCount = 0;
 
-  const cleanup = () => rm(workingDir, { recursive: true, force: true }).catch(() => {});
+  const archive = archiver('zip', { zlib: { level: 9 } });
+  const output = new PassThrough();
 
-  try {
-    for await (const blob of container.listBlobsFlat({ prefix: normalisedPrefix })) {
-      if (!blob.name || blob.name.endsWith(`/${FOLDER_PLACEHOLDER}`)) {
-        continue;
-      }
-      const relativeName = normalisedPrefix ? blob.name.slice(normalisedPrefix.length) : blob.name;
-      const targetPath = path.join(workingDir, relativeName);
-      await mkdir(path.dirname(targetPath), { recursive: true });
-      const blobClient = container.getBlobClient(blob.name);
-      await blobClient.downloadToFile(targetPath);
-      fileCount += 1;
+  archive.on('error', (error: Error) => {
+    output.destroy(error);
+  });
+
+  archive.pipe(output);
+
+  for await (const blob of container.listBlobsFlat({ prefix: normalisedPrefix })) {
+    if (!blob.name || blob.name.endsWith(`/${FOLDER_PLACEHOLDER}`)) {
+      continue;
+    }
+    const relativeName = normalisedPrefix ? blob.name.slice(normalisedPrefix.length) : blob.name;
+    if (!relativeName) {
+      continue;
+    }
+    const blobClient = container.getBlobClient(blob.name);
+    const download = await blobClient.download();
+    const body = download.readableStreamBody;
+    if (!body) {
+      continue;
     }
 
-    if (fileCount === 0) {
-      await cleanup();
-      return { stream: null, fileCount: 0 };
+    let nodeStream: Readable | null = null;
+    if (body instanceof Readable) {
+      nodeStream = body;
+    } else if (typeof Readable.fromWeb === 'function' && typeof (body as any).getReader === 'function') {
+      nodeStream = Readable.fromWeb(body as any);
     }
 
-    const zipProcess = spawn('zip', ['-r', '-', '.'], { cwd: workingDir });
-    const stream = zipProcess.stdout;
-
-    if (!stream) {
-      await cleanup();
-      throw new Error('Unable to create archive stream');
+    if (!nodeStream) {
+      continue;
     }
 
-    zipProcess.on('close', (code) => {
-      cleanup();
-      if (code !== 0) {
-        stream.destroy(new Error('Failed to create zip archive'));
-      }
-    });
-
-    zipProcess.on('error', (error) => {
-      cleanup();
-      stream.destroy(error);
-    });
-
-    return { stream, fileCount };
-  } catch (error) {
-    await cleanup();
-    throw error;
+    archive.append(nodeStream, { name: relativeName });
+    fileCount += 1;
   }
+
+  if (fileCount === 0) {
+    if (typeof archive.abort === 'function') {
+      archive.abort();
+    }
+    output.destroy();
+    return { stream: null, fileCount: 0 };
+  }
+
+  const finalizePromise = archive.finalize();
+  finalizePromise.catch((error: Error) => output.destroy(error));
+
+  return { stream: output, fileCount };
 }
