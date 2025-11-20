@@ -24,6 +24,8 @@ const sortableHeaders = document.querySelectorAll('#fileTable th.sortable');
 const previewPane = document.getElementById('previewPane');
 const copyPreviewBtn = document.getElementById('copyPreviewBtn');
 const copyPreviewLabel = copyPreviewBtn ? copyPreviewBtn.querySelector('.btn-copy-label') : null;
+const downloadAllBtn = document.getElementById('downloadAllBtn');
+const downloadAllSpinner = document.getElementById('downloadAllSpinner');
 const alertContainer = document.getElementById('alertContainer');
 const breadcrumb = document.getElementById('breadcrumb');
 
@@ -323,6 +325,24 @@ function showAlert(message, type = 'danger') {
   alertContainer.appendChild(wrapper);
 }
 
+function hasDownloadableItems() {
+  return Array.isArray(allItems) && allItems.length > 0;
+}
+
+function updateDownloadAllAvailability() {
+  if (!downloadAllBtn) return;
+  downloadAllBtn.disabled = !hasDownloadableItems();
+}
+
+function setDownloadAllLoading(isLoading) {
+  if (!downloadAllBtn) return;
+  const hasItems = hasDownloadableItems();
+  downloadAllBtn.disabled = isLoading || !hasItems;
+  if (downloadAllSpinner) {
+    downloadAllSpinner.classList.toggle('d-none', !isLoading);
+  }
+}
+
 function normalisePrefix(value) {
   let raw = (value ?? '').toString().trim();
   if (!raw) {
@@ -359,6 +379,12 @@ function formatSize(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function extractFileNameFromDisposition(disposition = '') {
+  if (!disposition) return '';
+  const match = disposition.match(/filename="?([^";]+)"?/i);
+  return match?.[1] ?? '';
 }
 
 function clampToOutputRoot(prefix) {
@@ -753,11 +779,53 @@ async function loadList() {
     }
     applyFilters({ resetPage: true });
     updateSortIndicators();
+    updateDownloadAllAvailability();
   } catch (error) {
     if (token !== listRequestToken || requestPrefix !== currentPrefix) {
       return;
     }
     showAlert(error.message || 'Failed to list output files');
+    updateDownloadAllAvailability();
+  }
+}
+
+async function downloadAllForCurrentPrefix() {
+  if (!downloadAllBtn) return;
+  setDownloadAllLoading(true);
+  try {
+    const response = await fetch(`${API_BASE}/output/download-zip?prefix=${encodeURIComponent(currentPrefix)}`);
+    if (!response.ok) {
+      const fallbackMessage = 'Failed to download files';
+      const errorText = await response.text();
+      let message = errorText || fallbackMessage;
+      try {
+        const parsed = JSON.parse(errorText);
+        if (parsed?.message) {
+          message = parsed.message;
+        }
+      } catch {
+        // ignore JSON parse errors
+      }
+      throw new Error(message);
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get('content-disposition') || '';
+    const trimmed = (currentPrefix || '').replace(/\/$/, '');
+    const lastSegment = trimmed.split('/').filter(Boolean).pop();
+    const fallbackName = `${lastSegment || 'output'}-files.zip`;
+    const filename = extractFileNameFromDisposition(disposition) || fallbackName;
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(blobUrl);
+  } catch (error) {
+    showAlert(error.message || 'Failed to download files');
+  } finally {
+    setDownloadAllLoading(false);
   }
 }
 
@@ -856,6 +924,13 @@ nextPageBtn.addEventListener('click', () => {
   applyFilters();
 });
 
+if (downloadAllBtn) {
+  downloadAllBtn.addEventListener('click', () => {
+    if (!hasDownloadableItems() || downloadAllBtn.disabled) return;
+    downloadAllForCurrentPrefix();
+  });
+}
+
 sortableHeaders.forEach((header) => {
   header.addEventListener('click', () => {
     const key = header.dataset.sort;
@@ -934,38 +1009,39 @@ if (copyPreviewBtn) {
 (async () => {
   try {
     await ensureHealth();
-await initProjectControls();
-await ensureHealth();
-const handleProjectChange = async (project) => {
-  currentProject = project;
-  outputRoot = resolveOutputRoot(project);
-  const base = clampToOutputRoot(outputRoot);
-  let nextPrefix = base;
-  if (pendingInitialPrefix) {
-    const candidate = normalisePrefix(pendingInitialPrefix);
-    if (candidate && candidate.startsWith(base)) {
-      nextPrefix = candidate;
-    }
-    pendingInitialPrefix = null;
-  }
-  setCurrentPrefix(nextPrefix);
-  if (searchInput) {
-    searchInput.value = '';
-  }
-  currentPage = 1;
-  sortOverrideActive = false;
-  allItems = [];
-  filteredItems = [];
-  resetPreview();
-  applyFilters({ resetPage: true });
-  await loadList();
-};
+    await initProjectControls();
+    await ensureHealth();
+    const handleProjectChange = async (project) => {
+      currentProject = project;
+      outputRoot = resolveOutputRoot(project);
+      const base = clampToOutputRoot(outputRoot);
+      let nextPrefix = base;
+      if (pendingInitialPrefix) {
+        const candidate = normalisePrefix(pendingInitialPrefix);
+        if (candidate && candidate.startsWith(base)) {
+          nextPrefix = candidate;
+        }
+        pendingInitialPrefix = null;
+      }
+      setCurrentPrefix(nextPrefix);
+      if (searchInput) {
+        searchInput.value = '';
+      }
+      currentPage = 1;
+      sortOverrideActive = false;
+      allItems = [];
+      filteredItems = [];
+      resetPreview();
+      applyFilters({ resetPage: true });
+      updateDownloadAllAvailability();
+      await loadList();
+    };
 
-onProjectChange((project) => {
-  handleProjectChange(project).catch((error) => {
-    showAlert(error.message || 'Failed to load output files');
-  });
-}, { immediate: true });
+    onProjectChange((project) => {
+      handleProjectChange(project).catch((error) => {
+        showAlert(error.message || 'Failed to load output files');
+      });
+    }, { immediate: true });
   } catch (error) {
     showAlert('Backend unavailable. Please confirm the API is running.');
   }

@@ -22,6 +22,17 @@ let sortDirection = 'desc';
 let searchDebounce;
 let currentProject = getSelectedProject();
 
+function getTargetType(run) {
+  const parameters = run?.parameters ?? {};
+  if (typeof parameters.target_type === 'string') {
+    return parameters.target_type.trim();
+  }
+  if (typeof parameters.targetType === 'string') {
+    return parameters.targetType.trim();
+  }
+  return '';
+}
+
 function escapeHtml(value = '') {
   return String(value)
     .replace(/&/g, '&amp;')
@@ -94,6 +105,10 @@ function sortRuns(runs) {
         valueA = a.status || '';
         valueB = b.status || '';
         break;
+      case 'targetType':
+        valueA = getTargetType(a).toLowerCase();
+        valueB = getTargetType(b).toLowerCase();
+        break;
       case 'project':
         valueA = (typeof a.parameters?.project === 'string' ? a.parameters.project : '').toLowerCase();
         valueB = (typeof b.parameters?.project === 'string' ? b.parameters.project : '').toLowerCase();
@@ -156,7 +171,7 @@ function renderRows(runs) {
   tableBody.innerHTML = '';
   if (!runs.length) {
     const row = document.createElement('tr');
-    row.innerHTML = '<td colspan="5" class="text-center text-muted py-4">No runs yet.</td>';
+    row.innerHTML = '<td colspan="6" class="text-center text-muted py-4">No runs yet.</td>';
     tableBody.appendChild(row);
     return;
   }
@@ -164,6 +179,7 @@ function renderRows(runs) {
     const row = document.createElement('tr');
     const projectParam = typeof run.parameters?.project === 'string' ? run.parameters.project.trim() : '';
     const timestampParam = typeof run.parameters?.timestamp === 'string' ? run.parameters.timestamp.trim() : '';
+    const targetType = getTargetType(run);
     const parameterPrefix = projectParam && timestampParam
       ? `output/${projectParam}/${timestampParam}/`
       : '';
@@ -177,6 +193,7 @@ function renderRows(runs) {
     row.innerHTML = `
       <td>${escapeHtml(formatDate(run.createdAt))}</td>
       <td>${escapeHtml(projectParam || '-')}</td>
+      <td>${escapeHtml(targetType || '-')}</td>
       <td>${escapeHtml(run.id)}</td>
       <td>${statusBadge(run.status)}</td>
       <td>
