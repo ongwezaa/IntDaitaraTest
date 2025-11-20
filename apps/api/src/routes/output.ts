@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { appConfig } from '../config.js';
-import { getBlobDownload, getBlobMeta, listBlobs, downloadTextBlob } from '../services/blobService.js';
+import { getBlobDownload, getBlobMeta, listBlobs, downloadTextBlob, streamPrefixAsZip } from '../services/blobService.js';
 import { isPreviewable } from '../services/previewService.js';
 
 export const outputRouter = Router();
@@ -53,6 +53,33 @@ outputRouter.get('/download', async (req, res, next) => {
     }
     res.setHeader('Content-Type', download.contentType ?? 'application/octet-stream');
     res.setHeader('Content-Disposition', `attachment; filename="${blob.split('/').pop() ?? 'file'}"`);
+    stream.pipe(res);
+  } catch (error) {
+    next(error);
+  }
+});
+
+outputRouter.get('/download-zip', async (req, res, next) => {
+  try {
+    const prefix = typeof req.query.prefix === 'string' ? req.query.prefix : appConfig.outputPrefix;
+    const { stream, fileCount } = await streamPrefixAsZip(prefix);
+    if (fileCount === 0) {
+      return res.status(404).json({ ok: false, message: 'No files found for this path' });
+    }
+    if (!stream) {
+      return res.status(500).json({ ok: false, message: 'Unable to create archive stream' });
+    }
+    const trimmed = prefix.replace(/\/$/, '');
+    const lastSegment = trimmed.split('/').filter(Boolean).pop() || 'output';
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${lastSegment}-files.zip"`);
+    stream.on('error', (error) => {
+      if (!res.headersSent) {
+        next(error);
+      } else {
+        res.destroy(error);
+      }
+    });
     stream.pipe(res);
   } catch (error) {
     next(error);

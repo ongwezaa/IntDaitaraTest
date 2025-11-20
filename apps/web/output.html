@@ -86,7 +86,18 @@
 
       <div class="card shadow-sm mb-4">
         <div class="card-header bg-transparent border-0 pb-0">
-          <h2 class="h5 mb-0">Files &amp; folders</h2>
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <h2 class="h5 mb-0">Files &amp; folders</h2>
+            <button class="btn btn-soft btn-sm" id="downloadAllBtn" type="button" disabled>
+              <span
+                class="spinner-border spinner-border-sm align-middle d-none"
+                role="status"
+                aria-hidden="true"
+                id="downloadAllSpinner"
+              ></span>
+              <span class="ms-1 align-middle">Download all</span>
+            </button>
+          </div>
         </div>
         <div class="card-body pt-3">
           <div class="file-browser table-responsive">
