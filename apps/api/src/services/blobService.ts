@@ -106,7 +106,28 @@ function normalisePrefix(prefix: string): string {
   if (!prefix) {
     return '';
   }
-  return prefix.endsWith('/') ? prefix : `${prefix}/`;
+  const trimmed = prefix.replace(/^\/+/, '');
+  return trimmed.endsWith('/') ? trimmed : `${trimmed}/`;
+}
+
+function toNodeStream(body: unknown): Readable | null {
+  if (!body) {
+    return null;
+  }
+
+  if (body instanceof Readable) {
+    return body;
+  }
+
+  if (typeof Readable.fromWeb === 'function' && typeof (body as any).getReader === 'function') {
+    return Readable.fromWeb(body as any);
+  }
+
+  if (typeof (body as any)[Symbol.asyncIterator] === 'function') {
+    return Readable.from(body as any);
+  }
+
+  return null;
 }
 
 export async function listBlobs(prefix: string, options: ListOptions = {}): Promise<ListBlobItem[]> {
@@ -115,8 +136,9 @@ export async function listBlobs(prefix: string, options: ListOptions = {}): Prom
   const hierarchical = options.hierarchical ?? false;
   const normalisedPrefix = normalisePrefix(prefix);
   const folderSet = new Set<string>();
+  const listPrefix = normalisedPrefix || undefined;
 
-  for await (const item of container.listBlobsFlat({ prefix })) {
+  for await (const item of container.listBlobsFlat({ prefix: listPrefix })) {
     if (!item.name) continue;
     if (item.name.endsWith(`/${FOLDER_PLACEHOLDER}`)) {
       const folderName = item.name.slice(0, -FOLDER_PLACEHOLDER.length - 1);
@@ -267,7 +289,9 @@ export async function streamPrefixAsZip(prefix: string): Promise<{ stream: NodeJ
 
   archive.pipe(output);
 
-  for await (const blob of container.listBlobsFlat({ prefix: normalisedPrefix })) {
+  const listPrefix = normalisedPrefix || undefined;
+
+  for await (const blob of container.listBlobsFlat({ prefix: listPrefix })) {
     if (!blob.name || blob.name.endsWith(`/${FOLDER_PLACEHOLDER}`)) {
       continue;
     }
@@ -277,18 +301,7 @@ export async function streamPrefixAsZip(prefix: string): Promise<{ stream: NodeJ
     }
     const blobClient = container.getBlobClient(blob.name);
     const download = await blobClient.download();
-    const body = download.readableStreamBody;
-    if (!body) {
-      continue;
-    }
-
-    let nodeStream: Readable | null = null;
-    if (body instanceof Readable) {
-      nodeStream = body;
-    } else if (typeof Readable.fromWeb === 'function' && typeof (body as any).getReader === 'function') {
-      nodeStream = Readable.fromWeb(body as any);
-    }
-
+    const nodeStream = toNodeStream(download.readableStreamBody);
     if (!nodeStream) {
       continue;
     }
